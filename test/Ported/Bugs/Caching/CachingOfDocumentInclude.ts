@@ -1,135 +1,116 @@
+import {IDocumentStore} from "../../../../src";
+import {disposeTestDocumentStore, testContext} from "../../../Utils/TestUtil";
+import * as assert from "assert";
+import {Lazy} from "../../../../src/Documents/Lazy";
+
+export class User {
+    public id: string;
+    public name: string;
+    public partnerId: string;
+    public email: string;
+    public tags: string[];
+    public age: number;
+    public active: boolean;
+}
+
 describe("CachingOfDocumentInclude", function () {
-    it("TODO", () => {
-        throw new Error();
+
+    let store: IDocumentStore;
+
+    beforeEach(async function () {
+        store = await testContext.getDocumentStore();
+    });
+
+    afterEach(async () =>
+        await disposeTestDocumentStore(store));
+
+    it("can cache document with includes", async () => {
+        {
+            const session = store.openSession();
+            const user = new User();
+            user.name = "Ayende";
+            await session.store(user);
+
+            const partner = new User();
+            partner.partnerId = "users/1-A";
+            await session.store(partner);
+
+            await session.saveChanges();
+        }
+
+        {
+            const session = store.openSession();
+            await session.include("partnerId")
+                .load<User>("users/2-A");
+            await session.saveChanges();
+        }
+
+        {
+            const session = store.openSession();
+            await session.include("partnerId")
+                .load<User>("users/2-A");
+            assert.strictEqual(session.advanced.requestExecutor.cache.numberOfItems, 1);
+        }
+    });
+
+    it("can avoid using server for load with include if everything is in session cache", async () => {
+        {
+            const session = store.openSession();
+            const user = new User();
+            user.name = "Ayende";
+            await session.store(user);
+
+            const partner = new User();
+            partner.partnerId = "users/1-A";
+            await session.store(partner);
+
+            await session.saveChanges();
+        }
+
+        {
+            const session = store.openSession();
+            const user = await session.load<User>("users/2-A");
+            await session.load<User>(user.partnerId);
+            const old = session.advanced.numberOfRequests;
+            const newUser = await session
+                .include("partnerId")
+                .load<User>("users/2-A");
+            assert.strictEqual(session.advanced.numberOfRequests, old);
+        }
+    });
+
+    it("can avoid using server for load with include if everything is in session cache lazy", async () => {
+        {
+            const session = store.openSession();
+            const user = new User();
+            user.name = "Ayende";
+            await session.store(user);
+
+            const partner = new User();
+            partner.partnerId = "users/1-A";
+            await session.store(partner);
+
+            await session.saveChanges();
+        }
+
+        {
+            const session = store.openSession();
+            session.advanced.lazily.load<User>("users/2-A");
+            session.advanced.lazily.load<User>("users/1-A");
+            await session.advanced.eagerly.executeAllPendingLazyOperations();
+
+            const old = session.advanced.numberOfRequests;
+            const result1: Lazy<User> = session.advanced.lazily
+                .include("partnerId")
+                .load<User>("users/2-A");
+
+            const user = await result1.getValue();
+            assert.ok(user);
+            assert.strictEqual(session.advanced.numberOfRequests, old);
+        }
     });
 });
 // public class CachingOfDocumentInclude extends RemoteTestBase {
-//      public static class User {
-//         private String id;
-//         private String name;
-//         private String partnerId;
-//         private String email;
-//         private String[] tags;
-//         private int age;
-//         private boolean active;
-//          public String getId() {
-//             return id;
-//         }
-//          public void setId(String id) {
-//             this.id = id;
-//         }
-//          public String getName() {
-//             return name;
-//         }
-//          public void setName(String name) {
-//             this.name = name;
-//         }
-//          public String getPartnerId() {
-//             return partnerId;
-//         }
-//          public void setPartnerId(String partnerId) {
-//             this.partnerId = partnerId;
-//         }
-//          public String getEmail() {
-//             return email;
-//         }
-//          public void setEmail(String email) {
-//             this.email = email;
-//         }
-//          public String[] getTags() {
-//             return tags;
-//         }
-//          public void setTags(String[] tags) {
-//             this.tags = tags;
-//         }
-//          public int getAge() {
-//             return age;
-//         }
-//          public void setAge(int age) {
-//             this.age = age;
-//         }
-//          public boolean isActive() {
-//             return active;
-//         }
-//          public void setActive(boolean active) {
-//             this.active = active;
-//         }
-//     }
-//      @Test
-//     public void can_cache_document_with_includes() throws Exception {
-//         try (IDocumentStore store = getDocumentStore()) {
-//             try (IDocumentSession session = store.openSession()) {
-//                 User user = new User();
-//                 user.setName("Ayende");
-//                 session.store(user);
-//                  User partner = new User();
-//                 partner.setPartnerId("users/1-A");
-//                 session.store(partner);
-//                  session.saveChanges();
-//             }
-//              try (IDocumentSession session = store.openSession()) {
-//                 session.include("partnerId")
-//                         .load(User.class, "users/2-A");
-//                 session.saveChanges();
-//             }
-//              try (IDocumentSession session = store.openSession()) {
-//                 session.include("partnerId")
-//                         .load(User.class, "users/2-A");
-//                  assertThat(session.advanced().getRequestExecutor().getCache().getNumberOfItems())
-//                         .isEqualTo(1);
-//             }
-//         }
-//     }
-//      @Test
-//     public void can_avoid_using_server_for_load_with_include_if_everything_is_in_session_cacheAsync() throws Exception {
-//         try (IDocumentStore store = getDocumentStore()) {
-//             try (IDocumentSession session = store.openSession()) {
-//                 User user = new User();
-//                 user.setName("Ayende");
-//                 session.store(user);
-//                  User partner = new User();
-//                 partner.setPartnerId("users/1-A");
-//                 session.store(partner);
-//                  session.saveChanges();
-//             }
-//              try (IDocumentSession session = store.openSession()) {
-//                 User user = session.load(User.class, "users/2-A");
-//                  session.load(User.class, user.getPartnerId());
-//                  int old = session.advanced().getNumberOfRequests();
-//                 User newUser = session.include("partnerId")
-//                         .load(User.class, "users/2-A");
-//                  assertThat(session.advanced().getNumberOfRequests())
-//                         .isEqualTo(old);
-//             }
-//         }
-//     }
-//      @Test
-//     public void can_avoid_using_server_for_load_with_include_if_everything_is_in_session_cacheLazy() throws Exception {
-//         try (IDocumentStore store = getDocumentStore()) {
-//             try (IDocumentSession session = store.openSession()) {
-//                 User user = new User();
-//                 user.setName("Ayende");
-//                 session.store(user);
-//                  User partner = new User();
-//                 partner.setPartnerId("users/1-A");
-//                 session.store(partner);
-//                  session.saveChanges();
-//             }
-//              try (IDocumentSession session = store.openSession()) {
-//                 session.advanced().lazily().load(User.class, "users/2-A");
-//                 session.advanced().lazily().load(User.class, "users/1-A");
-//                 session.advanced().eagerly().executeAllPendingLazyOperations();
-//                  int old = session.advanced().getNumberOfRequests();
-//                  Lazy<User> result1 = session.advanced().lazily()
-//                         .include("partnerId")
-//                         .load(User.class, "users/2-A");
-//                  assertThat(result1.getValue())
-//                         .isNotNull();
-//                  assertThat(session.advanced().getNumberOfRequests())
-//                         .isEqualTo(old);
-//             }
-//         }
-//     }
 //      @Test
 //     public void can_avoid_using_server_for_load_with_include_if_everything_is_in_session_cache() throws Exception {
 //         try (IDocumentStore store = getDocumentStore()) {
