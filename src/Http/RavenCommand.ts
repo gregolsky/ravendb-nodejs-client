@@ -127,10 +127,6 @@ export abstract class RavenCommand<TResult> {
             "When " + this._responseType + " is set to RAW then please override this method to handle the response.");
     }
 
-    protected _throwInvalidResponse(): void {
-        throwError("InvalidOperationException", "Response is invalid");
-    }
-
     protected _urlEncode(value): string {
         return encodeURIComponent(value);
     }
@@ -238,6 +234,14 @@ export abstract class RavenCommand<TResult> {
 
     protected _getHeaders() {
         return HeadersBuilder.create();
+    }
+
+    protected _throwInvalidResponse(): void {
+        throwError("InvalidOperationException", "Response is invalid");
+    }
+
+    protected static _throwInvalidResponse(cause: Error): void {
+        throwError("InvalidOperationException", "Response is invalid: " + cause.message, cause);
     }
 
     // tslint:disable-next-line:no-empty

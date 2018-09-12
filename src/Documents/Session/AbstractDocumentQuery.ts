@@ -1,3 +1,4 @@
+import { Lazy } from "../Lazy";
 import { QueryOperation } from "./Operations/QueryOperation";
 import * as BluebirdPromise from "bluebird";
 import { GroupByCountToken } from "./Tokens/GroupByCountToken";
@@ -1796,5 +1797,30 @@ export abstract class AbstractDocumentQuery<T extends object, TSelf extends Abst
     public _aggregateUsing(facetSetupDocumentId: string): void {
         this._selectTokens.push(FacetToken.create(facetSetupDocumentId));
     }
+
+    public lazily(): Lazy<T[]>;
+    public lazily(onEval: (list: T[]) => void): Lazy<T[]>;
+    public lazily(onEval?: (list: T[]) => void): Lazy<T[]> {
+        if (!this._queryOperation) {
+            this._queryOperation = this._initializeQueryOperation();
+        }
+
+        return null;
+        // const lazyQueryOperation = new LazyQueryOperation<>(
+        //     clazz, theSession.getConventions(), queryOperation, afterQueryExecutedCallback);
+        // return ((DocumentSession)theSession).addLazyOperation((Class<List<T>>) (Class<?>)List.class, lazyQueryOperation, onEval);
+    }
+
+    public countLazily(): Lazy<number> {
+        if (!this._queryOperation) {
+            this._take(0);
+            this._queryOperation = this._initializeQueryOperation();
+        }
+
+        return null;
+        // const lazyQueryOperation = new LazyQueryOperation<T>(clazz, theSession.getConventions(), queryOperation, afterQueryExecutedCallback);
+        // return ((DocumentSession)theSession).addLazyCountOperation(lazyQueryOperation);
+    }
+
     // tslint:enable:function-name
 }

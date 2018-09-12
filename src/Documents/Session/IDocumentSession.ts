@@ -1,3 +1,4 @@
+import { Lazy } from "../Lazy";
 import { DocumentConventions } from "../Conventions/DocumentConventions";
 import { IDisposable } from "../../Types/Contracts";
 import { AbstractCallback } from "../../Types/Callbacks";
@@ -18,10 +19,6 @@ export class SessionInfo {
 }
 
 export type ConcurrencyCheckMode = "Auto" | "Forced" | "Disabled";
-
-export interface IDocumentSessionImpl {
-    conventions: DocumentConventions;
-}
 export interface IDocumentSession extends IDisposable {
 
     /**
@@ -351,6 +348,9 @@ export interface IDocumentSessionImpl extends IDocumentSession {
         ids: string[], includes: string[], clazz: ObjectTypeDescriptor<TResult>): 
         Promise<EntitiesCollectionObject<TResult>>;
 
-    // tslint:disable-next-line:max-line-length
-    // TBD: Lazy<Dictionary<string, T>> LazyLoadInternal<T>(string[] ids, string[] includes, Action<Dictionary<string, T>> onEval);
+     lazyLoadInternal<TResult extends object>(
+        ids: string[], 
+        includes: string[], 
+        clazz: ObjectTypeDescriptor<TResult>, 
+        onEval: (list: TResult[]) => void): Lazy<EntitiesCollectionObject<TResult>>;
 }

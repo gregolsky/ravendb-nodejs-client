@@ -63,6 +63,10 @@ export class HttpCache implements IDisposable {
         this._items.set(url, httpCacheItem);
     }
 
+    public get numberOfItems(): number {
+        throw new Error("TODO");
+    }
+
     public getMightHaveBeenModified(): boolean {
         return false; // TBD
     }
