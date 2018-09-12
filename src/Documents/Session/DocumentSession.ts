@@ -372,4 +372,8 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
     public get attachments(): IAttachmentsSessionOperations {
         return this._attachments;
     }
+    
+    public lazily(): ILazySessionOperations {
+        return new LazySessionOperations(this);
+    }
 }
