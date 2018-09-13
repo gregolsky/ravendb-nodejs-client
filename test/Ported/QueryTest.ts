@@ -714,31 +714,31 @@ describe("QueryTest", function () {
         }
     });
 
-    it("query lazily", () => {
-        throw new Error("TODO");
-        // try (IDocumentStore store = getDocumentStore()) {
-        //     try (IDocumentSession session = store.openSession()) {
-        //          User user1 = new User();
-        //         user1.setName("John");
-        //          User user2 = new User();
-        //         user2.setName("Jane");
-        //          User user3 = new User();
-        //         user3.setName("Tarzan");
-        //          session.store(user1, "users/1");
-        //         session.store(user2, "users/2");
-        //         session.store(user3, "users/3");
-        //         session.saveChanges();
-        //          Lazy<List<User>> lazyQuery = session.query(User.class)
-        //                 .lazily();
-        //          List<User> queryResult = lazyQuery.getValue();
-        //          assertThat(queryResult)
-        //                 .hasSize(3);
-        //          assertThat(queryResult.get(0).getName())
-        //                 .isEqualTo("John");
-        //     }
-        // }
-    });
+    it("query lazily", async () => {
+        const session = store.openSession();
 
+        const user1 = new User();
+        user1.name = "John";
+
+        const user2 = new User();
+        user2.name = "Jane";
+
+        const user3 = new User();
+        user3.name = "Tarzan";
+
+        await session.store(user1, "users/1");
+        await session.store(user2, "users/2");
+        await session.store(user3, "users/3");
+        await session.saveChanges();
+
+        const lazyQuery = session.query<User>({
+            collection: "Users"
+        }).lazily();
+
+        const queryResult = await lazyQuery.getValue();
+        assert.strictEqual(queryResult.length, 3);
+        assert.strictEqual(queryResult[0].name, "John");
+    });
 });
 
 export class Dog {
