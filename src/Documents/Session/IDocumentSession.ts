@@ -324,12 +324,12 @@ export interface LoadOptions<T extends object> {
 }
 
 export interface SessionLoadStartingWithOptions<T extends object> extends StartingWithOptions {
-    documentType?: DocumentType<T>;
     matches?: string;
     start?: number;
     pageSize?: number;
     exclude?: string;
     startAfter?: string;
+    documentType?: DocumentType<T>;
 }
 
 export interface StartingWithOptions {
