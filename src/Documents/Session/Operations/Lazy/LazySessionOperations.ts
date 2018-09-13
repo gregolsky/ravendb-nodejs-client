@@ -1,8 +1,19 @@
-// public class LazySessionOperations implements ILazySessionOperations {
-//      protected DocumentSession delegate;
-//      public LazySessionOperations(DocumentSession delegate) {
-//         this.delegate = delegate;
-//     }
+import { ILazySessionOperations } from "./ILazySessionOperations";
+import { DocumentSession } from "../../DocumentSession";
+import { ILazyLoaderWithInclude } from "../../Loaders/ILazyLoaderWithInclude";
+import { LazyMultiLoaderWithInclude } from "../../Loaders/LazyMultiLoaderWithInclude";
+
+export class LazySessionOperations implements ILazySessionOperations {
+    
+    protected _delegate: DocumentSession;
+    public constructor(delegate: DocumentSession) {
+        this._delegate = delegate;
+    }
+
+    public include(path: string): ILazyLoaderWithInclude {
+        return new LazyMultiLoaderWithInclude(this._delegate).include(path);
+    }
+
 //      @Override
 //     public ILazyLoaderWithInclude include(String path) {
 //         return new LazyMultiLoaderWithInclude(delegate).include(path);
@@ -55,4 +66,4 @@
 //      //TBD expr ILazyLoaderWithInclude<T> ILazySessionOperations.Include<T>(Expression<Func<T, string>> path)
 //     //TBD expr ILazyLoaderWithInclude<T> ILazySessionOperations.Include<T>(Expression<Func<T, IEnumerable<string>>> path)
 //      //TBD Lazy<List<TResult>> ILazySessionOperations.MoreLikeThis<TResult>(MoreLikeThisQuery query)
-//  }
+}

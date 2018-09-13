@@ -1,8 +1,11 @@
+import { GetRequest } from "../../../Commands/MultiGet/GetRequest";
+import { GetResponse } from "../../../Commands/MultiGet/GetResponse";
+import { QueryResult } from "../../../../Documents/Queries/QueryResult";
 
-// public interface ILazyOperation {
-//     GetRequest createRequest();
-//     Object getResult();
-//     QueryResult getQueryResult();
-//     boolean isRequiresRetry();
-//     void handleResponse(GetResponse response);
-// }
+export interface ILazyOperation {
+    createRequest(): GetRequest;
+    getResult(): Object;
+    getQueryResult(): QueryResult;
+    isRequiresRetry(): boolean;
+    handleResponse(response: GetResponse): void;
+}

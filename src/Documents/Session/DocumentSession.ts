@@ -13,7 +13,7 @@ import { RequestExecutor } from "../../Http/RequestExecutor";
 import { DocumentConventions } from "../Conventions/DocumentConventions";
 import { AbstractCallback } from "../../Types/Callbacks";
 import { TypeUtil } from "../../Utility/TypeUtil";
-import { IRavenObject, EntitiesCollectionObject} from "../../Types";
+import { IRavenObject, EntitiesCollectionObject, ObjectTypeDescriptor} from "../../Types";
 import { getError, throwError } from "../../Exceptions";
 import { DocumentType } from "../DocumentAbstractions";
 import { LoadOperation } from "./Operations/LoadOperation";
@@ -30,6 +30,8 @@ import { AdvancedDocumentQueryOptions, DocumentQueryOptions } from "./QueryOptio
 import { IDocumentQuery } from "./IDocumentQuery";
 import { IAttachmentsSessionOperations } from "./IAttachmentsSessionOperations";
 import { DocumentSessionAttachments } from "./DocumentSessionAttachments";
+import { IEagerSessionOperations } from "./Operations/Lazy/IEagerSessionOperations";
+import { Lazy } from "../Lazy";
 
 export interface IStoredRawEntityInfo {
     originalValue: object;
@@ -376,4 +378,26 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
     public lazily(): ILazySessionOperations {
         return new LazySessionOperations(this);
     }
+
+    public eagerly(): IEagerSessionOperations {
+        return this;
+    }
+
+    public lazyLoadInternal<TResult extends object>(
+        ids: string[], 
+        includes: string[], 
+        clazz: ObjectTypeDescriptor<TResult>): Lazy<EntitiesCollectionObject<TResult>> {
+
+        if (this.checkIfIdAlreadyIncluded(ids, includes)) {
+            return new Lazy(() => this.load(ids, { documentType: clazz }));
+        }
+
+        const loadOperation = new LoadOperation(this)
+                .byIds(ids)
+                .withIncludes(includes);
+
+         const lazyOp = new LazyLoadOperation<>(clazz, this, loadOperation)
+                .byIds(ids).withIncludes(includes);
+         return addLazyOperation((Class<Map<String, T>>)(Class<?>)Map.class, lazyOp, onEval);
+        }
 }

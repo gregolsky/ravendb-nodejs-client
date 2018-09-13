@@ -1,37 +1,41 @@
-//  public class LazyMultiLoaderWithInclude implements ILazyLoaderWithInclude {
-//      private final IDocumentSessionImpl _session;
-//     private final List<String> _includes = new ArrayList<>();
-//      public LazyMultiLoaderWithInclude(IDocumentSessionImpl session) {
-//         _session = session;
-//     }
-//      /**
-//      * Includes the specified path.
-//      */
-//     @Override
-//     public ILazyLoaderWithInclude include(String path) {
-//         _includes.add(path);
-//         return this;
-//     }
-//      /**
-//      * Loads the specified ids.
-//      */
-//     @Override
-//     public <T> Lazy<Map<String, T>> load(Class<T> clazz, String... ids) {
-//         return _session.lazyLoadInternal(clazz, ids, _includes.toArray(new String[0]), null);
-//     }
-//      /**
-//      * Loads the specified ids.
-//      */
-//     @Override
-//     public <TResult> Lazy<Map<String, TResult>> load(Class<TResult> clazz, Collection<String> ids) {
-//         return _session.lazyLoadInternal(clazz, ids.toArray(new String[0]), _includes.toArray(new String[0]), null);
-//     }
-//      /**
-//      * Loads the specified id.
-//      */
-//     @Override
-//     public <TResult> Lazy<TResult> load(Class<TResult> clazz, String id) {
-//         Lazy<Map<String, TResult>> results = _session.lazyLoadInternal(clazz, new String[]{id}, _includes.toArray(new String[0]), null);
-//         return new Lazy(() -> results.getValue().values().iterator().next());
-//     }
-// }
+import { ILazyLoaderWithInclude } from "./ILazyLoaderWithInclude";
+import { IDocumentSessionImpl } from "../IDocumentSession";
+import { ObjectTypeDescriptor, EntitiesCollectionObject } from "../../../Types";
+import { Lazy } from "../../Lazy";
+
+export class LazyMultiLoaderWithInclude implements ILazyLoaderWithInclude {
+    private readonly _session: IDocumentSessionImpl;
+    private readonly _includes: string[] = [];
+
+    public constructor(session: IDocumentSessionImpl) {
+        this._session = session;
+    }
+
+    /**
+     * Includes the specified path.
+     */
+    public include(path: string): ILazyLoaderWithInclude {
+        this._includes.push(path);
+        return this;
+    }
+
+    public load<TResult extends object>(ids: string[]): Lazy<EntitiesCollectionObject<TResult>>;
+    public load<TResult extends object>(
+        ids: string[], clazz: ObjectTypeDescriptor<TResult>): Lazy<EntitiesCollectionObject<TResult>>;
+    public load<TResult extends object>(id: string): Lazy<TResult>;
+    public load<TResult extends object>(id: string, clazz?: ObjectTypeDescriptor<TResult>): Lazy<TResult>;
+    public load<TResult extends object>(ids: string | string[], clazz?: ObjectTypeDescriptor<TResult>): 
+        Lazy<TResult> | Lazy<EntitiesCollectionObject<TResult>> {
+        const isMultiple = Array.isArray(ids);
+        const result = this._session.lazyLoadInternal(
+            isMultiple ? ids as string[] : [ids] as string[], 
+            this._includes, 
+            clazz);
+
+        if (isMultiple) {
+            return result;
+        }
+        
+        return new Lazy(() => result.getValue().then(x => x[Object.keys(x)[0]]));
+    }
+}

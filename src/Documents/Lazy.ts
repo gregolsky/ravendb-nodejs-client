@@ -11,7 +11,7 @@ export class Lazy<T> {
         return !!this._value;
     }
 
-    public getValue(): Promise<T> {
+    public async getValue(): Promise<T> {
         if (this._value) {
             return this._value;
         }

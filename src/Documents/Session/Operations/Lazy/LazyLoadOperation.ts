@@ -1,15 +1,21 @@
-// public class LazyLoadOperation<T> implements ILazyOperation {
-//      private Class<T> _clazz;
-//     private final InMemoryDocumentSessionOperations _session;
-//     private final LoadOperation _loadOperation;
-//     private String[] _ids;
-//     private String[] _includes;
-//      public LazyLoadOperation(Class<T> clazz, InMemoryDocumentSessionOperations session, LoadOperation loadOperation) {
-//         _clazz = clazz;
-//         _session = session;
-//         _loadOperation = loadOperation;
-//     }
-//      @Override
+import { ILazyOperation } from "./ILazyOperation";
+import { ObjectTypeDescriptor } from "../../../../Types";
+import { InMemoryDocumentSessionOperations } from "../../InMemoryDocumentSessionOperations";
+import { LoadOperation } from "../LoadOperation";
+export class LazyLoadOperation<T extends object> implements ILazyOperation {
+    private _clazz: ObjectTypeDescriptor<T>;
+    private readonly _session: InMemoryDocumentSessionOperations;
+    private readonly _loadOperation: LoadOperation;
+    private _ids: string[];
+    private _includes: string[];
+
+    public constructor(
+        session: InMemoryDocumentSessionOperations, loadOperation: LoadOperation,  clazz: ObjectTypeDescriptor<T>) {
+        this._clazz = clazz;
+        this._session = session;
+        this._loadOperation = loadOperation;
+    }
+    
 //     public GetRequest createRequest() {
 //         List<String> idsToCheckOnServer = Arrays.stream(_ids).filter(id -> !_session.isLoadedOrDeleted(id)).collect(Collectors.toList());
 //          StringBuilder queryBuilder = new StringBuilder("?");
@@ -93,4 +99,4 @@
 //             result = _loadOperation.getDocuments(_clazz);
 //         }
 //     }
-// }
+}
