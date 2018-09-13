@@ -1,127 +1,140 @@
+import {EntitiesCollectionObject, IDocumentStore} from "../../../src";
+import {disposeTestDocumentStore, testContext} from "../../Utils/TestUtil";
+import {Company, Order, User} from "../../Assets/Entities";
+import {Lazy} from "../../../src/Documents/Lazy";
+import * as assert from "assert";
 
 describe("LazyTest", function () {
-    it("TODO", () => {
-        throw new Error();
+
+    let store: IDocumentStore;
+
+    beforeEach(async function () {
+        store = await testContext.getDocumentStore();
     });
-// public class LazyTest extends RemoteTestBase {
-//      @Test
-//     public void canLazilyLoadEntity() throws Exception {
-//         try (IDocumentStore store = getDocumentStore()) {
-//             try (IDocumentSession session = store.openSession()) {
-//                 for (int i = 1; i <= 6; i++) {
-//                     Company company = new Company();
-//                     company.setId("companies/" + i);
-//                     session.store(company, "companies/" + i);
-//                 }
-//                  session.saveChanges();
-//             }
-//              try (IDocumentSession session = store.openSession()) {
-//                 Lazy<Company> lazyOrder = session.advanced().lazily().load(Company.class, "companies/1");
-//                 assertThat(lazyOrder.isValueCreated())
-//                         .isFalse();
-//                  Company order = lazyOrder.getValue();
-//                 assertThat(order.getId())
-//                         .isEqualTo("companies/1");
-//                  Lazy<Map<String, Company>> lazyOrders = session.advanced().lazily().load(Company.class, Arrays.asList("companies/1", "companies/2"));
-//                 assertThat(lazyOrders.isValueCreated())
-//                         .isFalse();
-//                  Map<String, Company> orders = lazyOrders.getValue();
-//                 assertThat(orders)
-//                         .hasSize(2);
-//                  Company company1 = orders.get("companies/1");
-//                 Company company2 = orders.get("companies/2");
-//                  assertThat(company1)
-//                         .isNotNull();
-//                  assertThat(company2)
-//                         .isNotNull();
-//                  assertThat(company1.getId())
-//                         .isEqualTo("companies/1");
-//                  assertThat(company2.getId())
-//                         .isEqualTo("companies/2");
-//                  lazyOrder = session.advanced().lazily().load(Company.class, "companies/3");
-//                  assertThat(lazyOrder.isValueCreated())
-//                         .isFalse();
-//                  order = lazyOrder.getValue();
-//                  assertThat(order.getId())
-//                         .isEqualTo("companies/3");
-//                  Lazy<Map<String, Company>> load = session.advanced().lazily().load(Company.class, Arrays.asList("no_such_1", "no_such_2"));
-//                 Map<String, Company> missingItems = load.getValue();
-//                  assertThat(missingItems.get("no_such_1"))
-//                         .isNull();
-//                  assertThat(missingItems.get("no_such_2"))
-//                         .isNull();
-//              }
-//         }
-//     }
-//      @Test
-//     public void canExecuteAllPendingLazyOperations() throws Exception {
-//         try (IDocumentStore store = getDocumentStore()) {
-//             try (IDocumentSession session = store.openSession()) {
-//                 Company company1 = new Company();
-//                 company1.setId("companies/1");
-//                 session.store(company1, "companies/1");
-//                  Company company2 = new Company();
-//                 company2.setId("companies/2");
-//                 session.store(company2, "companies/2");
-//                  session.saveChanges();
-//             }
-//              try (IDocumentSession session = store.openSession()) {
-//                 Reference<Company> company1Ref = new Reference<>();
-//                 Reference<Company> company2Ref = new Reference<>();
-//                 session.advanced().lazily().load(Company.class, "companies/1", x -> company1Ref.value = x);
-//                 session.advanced().lazily().load(Company.class, "companies/2", x -> company2Ref.value = x);
-//                  assertThat(company1Ref.value)
-//                         .isNull();
-//                  assertThat(company2Ref.value)
-//                         .isNull();
-//                  session.advanced().eagerly().executeAllPendingLazyOperations();
-//                  assertThat(company1Ref.value)
-//                         .isNotNull();
-//                 assertThat(company2Ref.value)
-//                         .isNotNull();
-//                  assertThat(company1Ref.value.getId())
-//                         .isEqualTo("companies/1");
-//                 assertThat(company2Ref.value.getId())
-//                         .isEqualTo("companies/2");
-//             }
-//         }
-//     }
-//      @Test
-//     public void withQueuedActions_Load() throws Exception {
-//         try (IDocumentStore store = getDocumentStore()) {
-//             try (IDocumentSession session = store.openSession()) {
-//                 User user = new User();
-//                 user.setLastName("Oren");
-//                 session.store(user, "users/1");
-//                 session.saveChanges();
-//             }
-//              try (IDocumentSession session = store.openSession()) {
-//                 Reference<User> userRef = new Reference<>();
-//                  session.advanced().lazily().load(User.class, "users/1", x -> userRef.value = x);
-//                  session.advanced().eagerly().executeAllPendingLazyOperations();
-//                  assertThat(userRef.value)
-//                         .isNotNull();
-//             }
-//         }
-//     }
-//      @Test
-//     public void canUseCacheWhenLazyLoading() throws Exception {
-//         try (IDocumentStore store = getDocumentStore()) {
-//             try (IDocumentSession session = store.openSession()) {
-//                 User user = new User();
-//                 user.setLastName("Oren");
-//                 session.store(user, "users/1");
-//                 session.saveChanges();
-//             }
-//              try (IDocumentSession session = store.openSession()) {
-//                 session.advanced().lazily().load(User.class, "users/1").getValue();
-//             }
-//             try (IDocumentSession session = store.openSession()) {
-//                 User user = session.advanced().lazily().load(User.class, "users/1").getValue();
-//                 assertThat(user.getLastName())
-//                         .isEqualTo("Oren");
-//             }
-//         }
-//     }
-// }
+
+    afterEach(async () =>
+        await disposeTestDocumentStore(store));
+
+    it("can lazily load entity", async () => {
+        {
+            const session = store.openSession();
+            for (let i = 1; i <= 6; i++) {
+                const company = new Company();
+                company.id = "companies/" + i;
+                await session.store(company, "companies/" + i);
+            }
+            await session.saveChanges();
+        }
+
+        {
+            const session = store.openSession();
+            let lazyOrder: Lazy<Order> = session.advanced.lazily.load<Company>("companies/1");
+            assert.ok(!lazyOrder.isValueCreated());
+
+            let order = await lazyOrder.getValue();
+            assert.strictEqual(order.id, "companies/1");
+            const lazyOrders: Lazy<EntitiesCollectionObject<Company>>
+                = session.advanced.lazily.load<Company>(["companies/1", "companies/2"]);
+            assert.ok(!lazyOrders.isValueCreated());
+            const orders = await lazyOrders.getValue();
+            assert.strictEqual(Object.keys(orders).length, 2);
+
+            const company1 = orders["companies/1"];
+            const company2 = orders["companies/2"];
+            assert.ok(company1);
+            assert.ok(company2);
+
+            assert.strictEqual(company1.id, "companies/1");
+            assert.strictEqual(company2.id, "companies/2");
+
+            lazyOrder = session.advanced.lazily.load<Company>("companies/3");
+            assert.ok(!lazyOrder.isValueCreated());
+            order = await lazyOrder.getValue();
+            assert.strictEqual(order.id, "companies/3");
+
+            const load: Lazy<EntitiesCollectionObject<Company>>
+                = session.advanced.lazily.load<Company>(["no_such_1", "no_such_2"]);
+            const missingItems = await load.getValue();
+            assert.ok(!missingItems["no_such_1"]);
+            assert.ok(!missingItems["no_such_2"]);
+        }
+    });
+
+    it("can execute all pending lazy operations", async () => {
+        {
+            const session = store.openSession();
+            const company1 = new Company();
+            company1.id = "companies/1";
+            await session.store(company1, "companies/1");
+            const company2 = new Company();
+            company2.id = "companies/2";
+            await session.store(company2, "companies/2");
+            await session.saveChanges();
+        }
+
+        {
+            let company1Ref: Company;
+            let company2Ref: Company;
+            const session = store.openSession();
+
+            const company1Lazy: Lazy<Company> = session.advanced.lazily.load<Company>("companies/1");
+            company1Lazy.getValue().then(x => company1Ref = x);
+
+            const company2Lazy: Lazy<Company> = session.advanced.lazily.load<Company>("companies/2");
+            company2Lazy.getValue().then(x => company2Ref = x);
+
+            assert.ok(!company1Lazy.isValueCreated());
+            assert.ok(!company2Lazy.isValueCreated());
+
+            await session.advanced.eagerly.executeAllPendingLazyOperations();
+
+            assert.ok(company1Lazy.isValueCreated());
+            assert.ok(company2Lazy.isValueCreated());
+            assert.strictEqual(company1Ref.id, "companies/1");
+            assert.strictEqual(company2Ref.id, "companies/2");
+        }
+    });
+
+    it("can execute queued action when load", async () => {
+        {
+            const session = store.openSession();
+            const user = new User();
+            user.lastName = "Oren";
+            await session.store(user, "users/1");
+            await session.saveChanges();
+        }
+
+        {
+            const session = store.openSession();
+            let user: User;
+            const lazy: Lazy<User> = session.advanced.lazily.load<User>("users/1");
+            lazy.getValue().then(x => user = x);
+
+            await session.advanced.eagerly.executeAllPendingLazyOperations();
+            assert.ok(user);
+        }
+    });
+
+    it("can use cache with lazy loading", async () => {
+        {
+            const session = store.openSession();
+            const user = new User();
+            user.lastName = "Oren";
+            await session.store(user, "users/1");
+            await session.saveChanges();
+        }
+
+        {
+            const session = store.openSession();
+            const lazy: Lazy<User> = session.advanced.lazily.load<User>("users/1");
+            await lazy.getValue();
+        }
+
+        {
+            const session = store.openSession();
+            const lazy: Lazy<User> = session.advanced.lazily.load<User>("users/1");
+            const user = await lazy.getValue();
+            assert.strictEqual(user.lastName, "Oren");
+        }
+    });
 });
