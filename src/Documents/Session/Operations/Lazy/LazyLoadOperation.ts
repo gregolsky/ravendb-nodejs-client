@@ -1,13 +1,22 @@
+import * as StringBuilder from "string-builder";
 import { ILazyOperation } from "./ILazyOperation";
 import { ObjectTypeDescriptor } from "../../../../Types";
 import { InMemoryDocumentSessionOperations } from "../../InMemoryDocumentSessionOperations";
 import { LoadOperation } from "../LoadOperation";
+import { GetRequest } from "../../../Commands/MultiGet/GetRequest";
+import { QueryResult } from "../../../Queries/QueryResult";
+import { GetResponse } from "../../../Commands/MultiGet/GetResponse";
+import { GetDocumentsResult } from "../../../Commands/GetDocumentsCommand";
+
 export class LazyLoadOperation<T extends object> implements ILazyOperation {
     private _clazz: ObjectTypeDescriptor<T>;
     private readonly _session: InMemoryDocumentSessionOperations;
     private readonly _loadOperation: LoadOperation;
     private _ids: string[];
     private _includes: string[];
+    private _result: any;
+    private _queryResult: QueryResult;
+    private _requiresRetry: boolean;
 
     public constructor(
         session: InMemoryDocumentSessionOperations, loadOperation: LoadOperation,  clazz: ObjectTypeDescriptor<T>) {
@@ -15,88 +24,104 @@ export class LazyLoadOperation<T extends object> implements ILazyOperation {
         this._session = session;
         this._loadOperation = loadOperation;
     }
-    
-//     public GetRequest createRequest() {
-//         List<String> idsToCheckOnServer = Arrays.stream(_ids).filter(id -> !_session.isLoadedOrDeleted(id)).collect(Collectors.toList());
-//          StringBuilder queryBuilder = new StringBuilder("?");
-//          if (_includes != null) {
-//             for (String include : _includes) {
-//                 queryBuilder.append("&include=").append(include);
-//             }
-//         }
-//          idsToCheckOnServer.forEach(id -> queryBuilder.append("&id=").append(UrlUtils.escapeDataString(id)));
-//          boolean hasItems = !idsToCheckOnServer.isEmpty();
-//          if (!hasItems) {
-//             // no need to hit the server
-//             result = _loadOperation.getDocuments(_clazz);
-//             return null;
-//         }
-//          GetRequest getRequest = new GetRequest();
-//          getRequest.setUrl("/docs");
-//         getRequest.setQuery(queryBuilder.toString());
-//         return getRequest;
-//     }
-//      public LazyLoadOperation<T> byId(String id) {
-//         if (id == null) {
-//             return this;
-//         }
-//          if (_ids == null) {
-//             _ids = new String[] { id };
-//         }
-//          return this;
-//     }
-//      public LazyLoadOperation<T> byIds(String[] ids) {
-//         _ids = ids;
-//          return this;
-//     }
-//      public LazyLoadOperation<T> withIncludes(String[] includes) {
-//         _includes = includes;
-//         return this;
-//     }
-//      private Object result;
-//     private QueryResult queryResult;
-//     private boolean requiresRetry;
-//      @Override
-//     public Object getResult() {
-//         return result;
-//     }
-//      public void setResult(Object result) {
-//         this.result = result;
-//     }
-//      @Override
-//     public QueryResult getQueryResult() {
-//         return queryResult;
-//     }
-//      public void setQueryResult(QueryResult queryResult) {
-//         this.queryResult = queryResult;
-//     }
-//      @Override
-//     public boolean isRequiresRetry() {
-//         return requiresRetry;
-//     }
-//      public void setRequiresRetry(boolean requiresRetry) {
-//         this.requiresRetry = requiresRetry;
-//     }
-//      @Override
-//     public void handleResponse(GetResponse response) {
-//         if (response.isForceRetry()) {
-//             result = null;
-//             requiresRetry = true;
-//             return;
-//         }
-//          try {
-//             GetDocumentsResult multiLoadResult = response.getResult() != null ?
-//                     JsonExtensions.getDefaultMapper().readValue(response.getResult(), GetDocumentsResult.class)
-//                     : null;
-//             handleResponse(multiLoadResult);
-//         } catch (IOException e) {
-//             throw new RuntimeException(e);
-//         }
-//     }
-//      private void handleResponse(GetDocumentsResult loadResult) {
-//         _loadOperation.setResult(loadResult);
-//          if (!requiresRetry) {
-//             result = _loadOperation.getDocuments(_clazz);
-//         }
-//     }
+
+    public createRequest(): GetRequest {
+        const idsToCheckOnServer = this._ids
+            .filter(id => !this._session.isLoadedOrDeleted(id));
+        const queryBuilder = new StringBuilder("?");
+         
+        if (this._includes) {
+            for (const include of this._includes) {
+                queryBuilder.append("&include=").append(include);
+            }
+        }
+
+        for (const id of idsToCheckOnServer) {
+            queryBuilder.append("&id=").append(encodeURIComponent(id));
+        } 
+        
+        const hasItems = !idsToCheckOnServer.length;
+        if (!hasItems) {
+            // no need to hit the server
+            this._result = this._loadOperation.getDocuments(this._clazz);
+            return null;
+        }
+
+        const getRequest = new GetRequest();
+        getRequest.url = "/docs";
+        getRequest.query = queryBuilder.toString();
+        return getRequest;
+    }
+
+     public byId(id: string): LazyLoadOperation<T> {
+        if (!id) {
+            return this;
+        }
+
+        if (!this._ids) {
+            this._ids = [ id ];
+        }
+        
+        return this;
+    }
+
+     public byIds(ids: string[]): LazyLoadOperation<T> {
+        this._ids = ids;
+        return this;
+    }
+
+     public withIncludes(includes: string[]): LazyLoadOperation<T> {
+        this._includes = includes;
+        return this;
+    }
+
+    public get result(): any {
+        return this._result;
+    }
+
+    public set result(result) {
+        this._result = result;
+    }
+
+    public get queryResult(): QueryResult {
+        return this._queryResult;
+    }
+
+    public set queryResult(queryResult) {
+        this._queryResult = queryResult;
+    }
+
+    public get requiresRetry(): any {
+        return this._result;
+    }
+
+    public set requiresRetry(result) {
+        this._result = result;
+    }
+
+    public handleResponse(response: GetResponse): void {
+        if (response.forceRetry) {
+            this.result = null;
+            this.requiresRetry = true;
+            return;
+        }
+
+        return null; //TODO
+        // try {
+        //     const multiLoadResult: GetDocumentsResult = response.result;
+        //     // GetDocumentsResult multiLoadResult = response.getResult() != null ?
+        //     //     JsonExtensions.getDefaultMapper().readValue(response.getResult(), GetDocumentsResult.class)
+        //     //     : null;
+        //     handleResponse(multiLoadResult);
+        // } catch (IOException e) {
+        //     throw new RuntimeException(e);
+        // }
+    }
+
+    private _handleResponse(loadResult: GetDocumentsResult): void {
+        this._loadOperation.setResult(loadResult);
+        if (!this._requiresRetry) {
+            this._result = this._loadOperation.getDocuments(this._clazz);
+        }
+    }
 }
