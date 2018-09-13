@@ -10,14 +10,6 @@ export interface ILazyLoaderWithInclude {
      */
     include(path: string): ILazyLoaderWithInclude;
 
-    // /**
-    //  * Loads the specified entities with the specified ids.
-    //  * @param clazz Result class
-    //  * @param ids  Ids that should be loaded
-    //  * @param <T> Result class
-    //  */
-    // load<T extends object>(...ids: string[], clazz: ObjectTypeDescriptor<T>): Lazy<Map<String, T>>;
-
     /**
      * Loads the specified ids.
      * @param <TResult> Result class
