@@ -4,7 +4,7 @@ export class GetResponse {
         this._headers = {};
     }
 
-    private _headers: { [key: string]: string | string[] };
+    private _headers: { [key: string]: string };
     private _result: string;
     private _statusCode: number;
     private _forceRetry;
@@ -26,14 +26,14 @@ export class GetResponse {
     /**
      * @return Request headers.
      */
-    public get headers(): { [key: string]: string | string[] } {
+    public get headers(): { [key: string]: string } {
         return this._headers;
     }
 
     /**
      * @param headers Request headers.
      */
-    public set headers(headers: { [key: string]: string | string[] }) {
+    public set headers(headers: { [key: string]: string }) {
         this.headers = headers;
     }
 

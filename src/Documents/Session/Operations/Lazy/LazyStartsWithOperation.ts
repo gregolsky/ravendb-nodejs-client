@@ -1,86 +1,98 @@
+import { ILazyOperation } from "./ILazyOperation";
+import { ObjectTypeDescriptor } from "../../../../Types";
+import { InMemoryDocumentSessionOperations } from "../../InMemoryDocumentSessionOperations";
+import { SessionLoadStartingWithOptions } from "../../IDocumentSession";
+import { GetRequest } from "../../../Commands/MultiGet/GetRequest";
+import { QueryResult } from "../../../Queries/QueryResult";
+import { GetResponse } from "../../../Commands/MultiGet/GetResponse";
 
-// public class LazyStartsWithOperation<T> implements ILazyOperation {
-//      private final Class<T> _clazz;
-//     private final String _idPrefix;
-//     private final String _matches;
-//     private final String _exclude;
-//     private final int _start;
-//     private final int _pageSize;
-//     private final InMemoryDocumentSessionOperations _sessionOperations;
-//     private final String _startAfter;
-//      public LazyStartsWithOperation(Class<T> clazz, String idPrefix, String matches, String exclude, int start, int pageSize, InMemoryDocumentSessionOperations sessionOperations, String startAfter) {
-//         _clazz = clazz;
-//         _idPrefix = idPrefix;
-//         _matches = matches;
-//         _exclude = exclude;
-//         _start = start;
-//         _pageSize = pageSize;
-//         _sessionOperations = sessionOperations;
-//         _startAfter = startAfter;
-//     }
-//      @Override
-//     public GetRequest createRequest() {
-//         GetRequest request = new GetRequest();
-//         request.setUrl("/docs");
-//         request.setQuery(String.format("?startsWith=%s&matches=%s&exclude=%s&start=%d&pageSize=%d&startAfter=%s",
-//                 UrlUtils.escapeDataString(_idPrefix),
-//                 UrlUtils.escapeDataString(ObjectUtils.firstNonNull(_matches, "")),
-//                 UrlUtils.escapeDataString(ObjectUtils.firstNonNull(_exclude, "")),
-//                 _start,
-//                 _pageSize,
-//                 ObjectUtils.firstNonNull(_startAfter, "")
-//         ));
-//         return request;
-//     }
-//      private Object result;
-//     private QueryResult queryResult;
-//     private boolean requiresRetry;
-//      @Override
-//     public Object getResult() {
-//         return result;
-//     }
-//      public void setResult(Object result) {
-//         this.result = result;
-//     }
-//      @Override
-//     public QueryResult getQueryResult() {
-//         return queryResult;
-//     }
-//      public void setQueryResult(QueryResult queryResult) {
-//         this.queryResult = queryResult;
-//     }
-//      @Override
-//     public boolean isRequiresRetry() {
-//         return requiresRetry;
-//     }
-//      public void setRequiresRetry(boolean requiresRetry) {
-//         this.requiresRetry = requiresRetry;
-//     }
-//      @Override
-//     public void handleResponse(GetResponse response) {
-//         try {
-//             GetDocumentsResult getDocumentResult = JsonExtensions.getDefaultMapper().readValue(response.getResult(), GetDocumentsResult.class);
-//              TreeMap<String, Object> finalResults = new TreeMap<>(String::compareToIgnoreCase);
-//              for (JsonNode document : getDocumentResult.getResults()) {
-//                 DocumentInfo newDocumentInfo = DocumentInfo.getNewDocumentInfo((ObjectNode) document);
-//                 _sessionOperations.documentsById.add(newDocumentInfo);
-//                  if (newDocumentInfo.getId() == null) {
-//                     continue; // is this possible?
-//                 }
-//                  if (_sessionOperations.isDeleted(newDocumentInfo.getId())) {
-//                     finalResults.put(newDocumentInfo.getId(), null);
-//                     continue;
-//                 }
-//                  DocumentInfo doc = _sessionOperations.documentsById.getValue(newDocumentInfo.getId());
-//                 if (doc != null) {
-//                     finalResults.put(newDocumentInfo.getId(), _sessionOperations.trackEntity(_clazz, doc));
-//                     continue;
-//                 }
-//                  finalResults.put(newDocumentInfo.getId(), null);
-//             }
-//              result = finalResults;
-//         } catch (IOException e) {
-//             throw new RuntimeException(e);
-//         }
-//     }
-// }
+const enc = encodeURIComponent;
+export class LazyStartsWithOperation<T extends object> implements ILazyOperation {
+
+    private readonly _clazz: ObjectTypeDescriptor<T>;
+    private readonly _idPrefix: string;
+    private readonly _matches: string;
+    private readonly _exclude: string;
+    private readonly _start: number;
+    private readonly _pageSize: number;
+    private readonly _sessionOperations: InMemoryDocumentSessionOperations;
+    private readonly _startAfter: string;
+
+    public constructor(
+        idPrefix: string, 
+        opts: SessionLoadStartingWithOptions<T>,
+        sessionOperations: InMemoryDocumentSessionOperations) {
+        this._idPrefix = idPrefix;
+        this._matches = opts.matches;
+        this._exclude = opts.exclude;
+        this._start = opts.start;
+        this._pageSize = opts.pageSize;
+        this._sessionOperations = sessionOperations;
+        this._startAfter = opts.startAfter;
+        this._clazz = sessionOperations.conventions.findEntityType(opts.documentType);
+    }
+
+    public createRequest(): GetRequest {
+        const request = new GetRequest();
+        request.url = "/docs";
+        request.query = 
+            // tslint:disable-next-line:max-line-length
+            `?startsWith=${enc(this._idPrefix)}&matches=${enc(this._matches) || ""}&exclude=${enc(this._exclude) || ""}&start=${this._start}&pageSize=${this._pageSize}&startAfter=${enc(this._startAfter)}`;
+        return request;
+    }
+
+    private _result: Object;
+    private _queryResult: QueryResult;
+    private _requiresRetry: boolean;
+
+    public get result(): any {
+        return this._result;
+    }
+
+    public set result(result) {
+        this._result = result;
+    }
+
+    public get queryResult(): QueryResult {
+        return this._queryResult;
+    }
+
+    public set queryResult(queryResult) {
+        this._queryResult = queryResult;
+    }
+
+    public get requiresRetry() {
+        return this._requiresRetry;
+    }
+
+    public set requiresRetry(result) {
+        this._requiresRetry = result;
+    }
+
+    public handleResponse(response: GetResponse): void {
+        // try {
+        //     GetDocumentsResult getDocumentResult = JsonExtensions.getDefaultMapper().readValue(response.getResult(), GetDocumentsResult.class);
+        //      TreeMap<String, Object> finalResults = new TreeMap<>(String::compareToIgnoreCase);
+        //      for (JsonNode document : getDocumentResult.getResults()) {
+        //         DocumentInfo newDocumentInfo = DocumentInfo.getNewDocumentInfo((ObjectNode) document);
+        //         _sessionOperations.documentsById.add(newDocumentInfo);
+        //          if (newDocumentInfo.getId() == null) {
+        //             continue; // is this possible?
+        //         }
+        //          if (_sessionOperations.isDeleted(newDocumentInfo.getId())) {
+        //             finalResults.put(newDocumentInfo.getId(), null);
+        //             continue;
+        //         }
+        //          DocumentInfo doc = _sessionOperations.documentsById.getValue(newDocumentInfo.getId());
+        //         if (doc != null) {
+        //             finalResults.put(newDocumentInfo.getId(), _sessionOperations.trackEntity(_clazz, doc));
+        //             continue;
+        //         }
+        //          finalResults.put(newDocumentInfo.getId(), null);
+        //     }
+        //      result = finalResults;
+        // } catch (IOException e) {
+        //     throw new RuntimeException(e);
+        // }
+    }
+}

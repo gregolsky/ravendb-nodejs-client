@@ -9,5 +9,5 @@ export interface IEagerSessionOperations {
     /**
      * Execute all the lazy requests pending within this session
      */
-    executeAllPendingLazyOperations(): ResponseTimeInformation;
+    executeAllPendingLazyOperations(): Promise<ResponseTimeInformation>;
 }

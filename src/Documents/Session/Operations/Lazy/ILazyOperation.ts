@@ -3,9 +3,10 @@ import { GetResponse } from "../../../Commands/MultiGet/GetResponse";
 import { QueryResult } from "../../../../Documents/Queries/QueryResult";
 
 export interface ILazyOperation {
+    result: any;
+    queryResult: QueryResult;
+    requiresRetry: boolean;
+
     createRequest(): GetRequest;
-    getResult(): Object;
-    getQueryResult(): QueryResult;
-    isRequiresRetry(): boolean;
     handleResponse(response: GetResponse): void;
 }

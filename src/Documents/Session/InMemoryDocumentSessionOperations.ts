@@ -41,6 +41,7 @@ import { JsonSerializer } from "../../Mapping/Json/Serializer";
 import { OperationExecutor } from "../Operations/OperationExecutor";
 import { createMetadataDictionary } from "../../Mapping/MetadataAsDictionary";
 import {IndexBatchOptions, ReplicationBatchOptions} from "./IAdvancedSessionOperations";
+import { ILazyOperation } from "./Operations/Lazy/ILazyOperation";
 
 export abstract class InMemoryDocumentSessionOperations 
     extends EventEmitter
@@ -54,7 +55,7 @@ export abstract class InMemoryDocumentSessionOperations
 
     private _operationExecutor: OperationExecutor;
 
-    protected _pendingLazyOperations = [];
+    protected _pendingLazyOperations: ILazyOperation[] = [];
 
     protected static _instancesCounter: number = 0;
 
@@ -400,7 +401,7 @@ export abstract class InMemoryDocumentSessionOperations
         return true;
     }
 
-    protected static getOperationResult<T extends object>(result: any, clazz: ObjectTypeDescriptor<T>): T {
+    protected static _getOperationResult<T extends object>(result: any, clazz: ObjectTypeDescriptor<T>): T {
         // if (!result) { TODO ?
         //     return result;
         // }

@@ -1,3 +1,4 @@
+import * as os from "os";
 import {DocumentQuery} from "./DocumentQuery";
 import {MultiLoaderWithInclude} from "./Loaders/MultiLoaderWithInclude";
 import {BatchOperation} from "./Operations/BatchOperation";
@@ -32,6 +33,18 @@ import { IAttachmentsSessionOperations } from "./IAttachmentsSessionOperations";
 import { DocumentSessionAttachments } from "./DocumentSessionAttachments";
 import { IEagerSessionOperations } from "./Operations/Lazy/IEagerSessionOperations";
 import { Lazy } from "../Lazy";
+import { LazyLoadOperation } from "./Operations/Lazy/LazyLoadOperation";
+import { ILazyOperation } from "./Operations/Lazy/ILazyOperation";
+import { ResponseTimeInformation } from "./ResponseTimeInformation";
+import { GetRequest } from "../Commands/MultiGet/GetRequest";
+import { MultiGetOperation } from "./Operations/MultiGetOperation";
+import { Stopwatch } from "../../Utility/Stopwatch";
+import { GetResponse } from "../Commands/MultiGet/GetResponse";
+import { HEADERS } from "../../Constants";
+import { ResponseTimeItem } from "../Session/ResponseTimeInformation";
+import { delay } from "../../Utility/PromiseUtil";
+import { ILazySessionOperations } from "./Operations/Lazy/ILazySessionOperations";
+import { LazySessionOperations } from "./Operations/Lazy/LazySessionOperations";
 
 export interface IStoredRawEntityInfo {
     originalValue: object;
@@ -375,12 +388,105 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
         return this._attachments;
     }
     
-    public lazily(): ILazySessionOperations {
+    public get lazily(): ILazySessionOperations {
         return new LazySessionOperations(this);
     }
 
-    public eagerly(): IEagerSessionOperations {
+    public get eagerly(): IEagerSessionOperations {
         return this;
+    }
+
+    public async executeAllPendingLazyOperations(): Promise<ResponseTimeInformation> {
+        const requests: GetRequest[] = [];
+        for (let i = 0; i < this._pendingLazyOperations.length; i++) {
+            const req = this._pendingLazyOperations[i].createRequest();
+            if (!req) {
+                this._pendingLazyOperations.splice(i, 1);
+                i++; // so we'll recheck this index
+                continue;
+            }
+            
+            requests.push(req);
+        }
+
+        if (!requests.length) {
+            return new ResponseTimeInformation();
+        }
+
+        try {
+            const sw = Stopwatch.createStarted();
+            this.incrementRequestCount();
+            const responseTimeDuration: ResponseTimeInformation = new ResponseTimeInformation();
+            while (await this._executeLazyOperationsSingleStep(responseTimeDuration, requests)) {
+                await delay(100);
+            }
+
+            responseTimeDuration.computeServerTotal();
+            
+            // for (const pendingLazyOperation of this._pendingLazyOperations) {
+            //     const value = this.onEvaluateLazy.get(pendingLazyOperation);
+            //     if (value != null) {
+            //         value.accept(pendingLazyOperation.getResult());
+            //     }
+            // }
+
+            responseTimeDuration.totalClientDuration = sw.elapsed;
+            return responseTimeDuration;
+        } catch (err) {
+            throwError("RavenException", "Unable to execute pending operations.", err);
+        } finally {
+            this._pendingLazyOperations.length = 0;
+        }
+    }
+
+    private async _executeLazyOperationsSingleStep(
+        responseTimeInformation: ResponseTimeInformation, requests: GetRequest[]): Promise<boolean> {
+        const multiGetOperation = new MultiGetOperation(this);
+        const multiGetCommand = multiGetOperation.createRequest(requests);
+        await this.requestExecutor.execute(multiGetCommand, this._sessionInfo);
+        const responses: GetResponse[] = multiGetCommand.result;
+
+        for (let i = 0; i < this._pendingLazyOperations.length; i++) {
+            let totalTime: number;
+            let tempReqTime: string;
+            const response = responses[i];
+            tempReqTime = response.headers[HEADERS.REQUEST_TIME];
+            totalTime = tempReqTime ? parseInt(tempReqTime, 10) : 0;
+            const timeItem = {
+                url: requests[i].urlAndQuery,
+                duration: totalTime
+            };
+            responseTimeInformation.durationBreakdown.push(timeItem);
+            if (response.requestHasErrors()) {
+                throwError(
+                    "InvalidOperationException",
+                    "Got an error from server, status code: " + response.statusCode + os.EOL + response.result);
+            }
+            this._pendingLazyOperations[i].handleResponse(response);
+            if (this._pendingLazyOperations[i].requiresRetry) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public addLazyOperation<T extends object>(operation: ILazyOperation, clazz: ObjectTypeDescriptor<T>): Lazy<T> {
+        this._pendingLazyOperations.push(operation);
+        const lazyValue = new Lazy<T>(async () => {
+            await this.executeAllPendingLazyOperations();
+            return InMemoryDocumentSessionOperations._getOperationResult(
+                operation.result, clazz);
+        });
+        return lazyValue;
+    }
+
+    protected _addLazyCountOperation(operation: ILazyOperation): Lazy<number> {
+        this._pendingLazyOperations.push(operation);
+        return new Lazy(async () => {
+            await this.executeAllPendingLazyOperations();
+            return operation.queryResult.totalResults;
+        });
     }
 
     public lazyLoadInternal<TResult extends object>(
@@ -396,8 +502,10 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
                 .byIds(ids)
                 .withIncludes(includes);
 
-         const lazyOp = new LazyLoadOperation<>(clazz, this, loadOperation)
-                .byIds(ids).withIncludes(includes);
-         return addLazyOperation((Class<Map<String, T>>)(Class<?>)Map.class, lazyOp, onEval);
-        }
+        const lazyOp = new LazyLoadOperation(this, loadOperation, clazz)
+            .byIds(ids)
+            .withIncludes(includes);
+
+        return this.addLazyOperation(lazyOp, clazz as any);
+    }
 }

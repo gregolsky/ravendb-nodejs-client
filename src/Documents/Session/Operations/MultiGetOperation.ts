@@ -1,12 +1,17 @@
-// public class MultiGetOperation {
-//     //TBD: used in lazy execution
-//     private final InMemoryDocumentSessionOperations _session;
-//      public MultiGetOperation(InMemoryDocumentSessionOperations session) {
-//         _session = session;
-//     }
-//      public MultiGetCommand createRequest(List<GetRequest> requests) {
-//         return new MultiGetCommand(_session.getRequestExecutor().getCache(), requests);
-//     }
-//      public void setResult(ObjectNode result) {
-//      }
-// }
+import { InMemoryDocumentSessionOperations } from "../InMemoryDocumentSessionOperations";
+import { GetRequest } from "../../Commands/MultiGet/GetRequest";
+import { MultiGetCommand } from "../../Commands/MultiGet/MultiGetCommand";
+
+export class MultiGetOperation {
+    //TBD: used in lazy execution
+    
+    private readonly _session: InMemoryDocumentSessionOperations;
+     public constructor(session: InMemoryDocumentSessionOperations) {
+        this._session = session;
+    }
+     public createRequest(requests: GetRequest[]): MultiGetCommand {
+        return new MultiGetCommand(this._session.requestExecutor.cache, requests);
+    }
+    
+    public setResult(result: object): void {}
+}

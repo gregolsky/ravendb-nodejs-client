@@ -91,12 +91,12 @@ export class LazyLoadOperation<T extends object> implements ILazyOperation {
         this._queryResult = queryResult;
     }
 
-    public get requiresRetry(): any {
-        return this._result;
+    public get requiresRetry() {
+        return this._requiresRetry;
     }
 
     public set requiresRetry(result) {
-        this._result = result;
+        this._requiresRetry = result;
     }
 
     public handleResponse(response: GetResponse): void {
@@ -123,5 +123,9 @@ export class LazyLoadOperation<T extends object> implements ILazyOperation {
         if (!this._requiresRetry) {
             this._result = this._loadOperation.getDocuments(this._clazz);
         }
+    }
+
+    public getResult() {
+        return null;
     }
 }
