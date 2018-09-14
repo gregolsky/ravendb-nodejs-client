@@ -64,7 +64,7 @@ export class GetRequest {
      * @param query Query information e.g. "?pageStart=10&amp;pageSize=20".
      */
     public set query(query: string) {
-        this.query = query;
+        this._query = query;
     }
 
     public get method() {

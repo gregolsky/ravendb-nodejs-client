@@ -40,7 +40,7 @@ export class LazyLoadOperation<T extends object> implements ILazyOperation {
             queryBuilder.append("&id=").append(encodeURIComponent(id));
         } 
         
-        const hasItems = !idsToCheckOnServer.length;
+        const hasItems = idsToCheckOnServer.length;
         if (!hasItems) {
             // no need to hit the server
             this._result = this._loadOperation.getDocuments(this._clazz);

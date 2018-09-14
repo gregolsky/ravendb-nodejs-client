@@ -4,7 +4,7 @@ import {Company, Order, User} from "../../Assets/Entities";
 import {Lazy} from "../../../src/Documents/Lazy";
 import * as assert from "assert";
 
-describe("LazyTest", function () {
+describe.only("LazyTest", function () {
 
     let store: IDocumentStore;
 
@@ -15,7 +15,7 @@ describe("LazyTest", function () {
     afterEach(async () =>
         await disposeTestDocumentStore(store));
 
-    it("can lazily load entity", async () => {
+    it.only("can lazily load entity", async () => {
         {
             const session = store.openSession();
             for (let i = 1; i <= 6; i++) {
@@ -28,11 +28,11 @@ describe("LazyTest", function () {
 
         {
             const session = store.openSession();
-            let lazyOrder: Lazy<Order> = session.advanced.lazily.load<Company>("companies/1");
-            assert.ok(!lazyOrder.isValueCreated());
+            let lazyCompany: Lazy<Company> = session.advanced.lazily.load<Company>("companies/1");
+            assert.ok(!lazyCompany.isValueCreated());
 
-            let order = await lazyOrder.getValue();
-            assert.strictEqual(order.id, "companies/1");
+            let company = await lazyCompany.getValue();
+            assert.strictEqual(company.id, "companies/1");
             const lazyOrders: Lazy<EntitiesCollectionObject<Company>>
                 = session.advanced.lazily.load<Company>(["companies/1", "companies/2"]);
             assert.ok(!lazyOrders.isValueCreated());
@@ -47,10 +47,10 @@ describe("LazyTest", function () {
             assert.strictEqual(company1.id, "companies/1");
             assert.strictEqual(company2.id, "companies/2");
 
-            lazyOrder = session.advanced.lazily.load<Company>("companies/3");
-            assert.ok(!lazyOrder.isValueCreated());
-            order = await lazyOrder.getValue();
-            assert.strictEqual(order.id, "companies/3");
+            lazyCompany = session.advanced.lazily.load<Company>("companies/3");
+            assert.ok(!lazyCompany.isValueCreated());
+            company = await lazyCompany.getValue();
+            assert.strictEqual(company.id, "companies/3");
 
             const load: Lazy<EntitiesCollectionObject<Company>>
                 = session.advanced.lazily.load<Company>(["no_such_1", "no_such_2"]);

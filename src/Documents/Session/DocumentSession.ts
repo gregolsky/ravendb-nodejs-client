@@ -398,15 +398,15 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
 
     public async executeAllPendingLazyOperations(): Promise<ResponseTimeInformation> {
         const requests: GetRequest[] = [];
-        for (let i = 0; i < this._pendingLazyOperations.length; i++) {
-            const req = this._pendingLazyOperations[i].createRequest();
+        for (let i = this._pendingLazyOperations.length - 1; i >= 0; i -= 1) {
+            const op = this._pendingLazyOperations[i];
+            const req = op.createRequest();
             if (!req) {
                 this._pendingLazyOperations.splice(i, 1);
-                i++; // so we'll recheck this index
                 continue;
             }
-            
-            requests.push(req);
+
+            requests.unshift(req);
         }
 
         if (!requests.length) {
@@ -422,14 +422,6 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
             }
 
             responseTimeDuration.computeServerTotal();
-            
-            // for (const pendingLazyOperation of this._pendingLazyOperations) {
-            //     const value = this.onEvaluateLazy.get(pendingLazyOperation);
-            //     if (value != null) {
-            //         value.accept(pendingLazyOperation.getResult());
-            //     }
-            // }
-
             responseTimeDuration.totalClientDuration = sw.elapsed;
             return responseTimeDuration;
         } catch (err) {
@@ -441,6 +433,7 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
 
     private async _executeLazyOperationsSingleStep(
         responseTimeInformation: ResponseTimeInformation, requests: GetRequest[]): Promise<boolean> {
+        debugger;
         const multiGetOperation = new MultiGetOperation(this);
         const multiGetCommand = multiGetOperation.createRequest(requests);
         await this.requestExecutor.execute(multiGetCommand, this._sessionInfo);

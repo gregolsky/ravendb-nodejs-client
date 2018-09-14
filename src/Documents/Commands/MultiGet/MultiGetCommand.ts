@@ -30,12 +30,11 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
        this._baseUrl = node.url + "/databases/" + node.database;
 
        const requests = [];
-       const body = { Requests: requests };
-       const request = { 
+       const bodyObj = { Requests: requests };
+       const request: HttpRequestParameters = { 
            uri: this._baseUrl + "/multi_get",
            method: "POST", 
-           body, 
-           headers: this._getHeaders().withContentTypeJson().build()
+           headers: this._getHeaders().withContentTypeJson().build(),
         };
        
        for (const command of this._commands) {
@@ -47,8 +46,6 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
                headers["If-None-Match"] = `"${cacheItemInfo.cachedChangeVector}"`;
            }
 
-
-
            Object.assign(headers, command.headers);
            const req = {
                Url: "/databases/" + node.database + command.url,
@@ -58,8 +55,10 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
                Content: command.body
            };
            
-           requests.push(JSON.stringify(req));
+           requests.push(req);
        }
+
+       request.body = JSON.stringify(bodyObj);
 
        return request;
    }

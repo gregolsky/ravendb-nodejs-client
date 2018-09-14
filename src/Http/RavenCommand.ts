@@ -124,7 +124,7 @@ export abstract class RavenCommand<TResult> {
 
     public setResponseRaw(response: HttpResponse, body: string): void {
         throwError("NotSupportedException",
-            "When " + this._responseType + " is set to RAW then please override this method to handle the response.");
+            "When _responseType is set to RAW then please override this method to handle the response.");
     }
 
     protected _urlEncode(value): string {
@@ -174,9 +174,9 @@ export abstract class RavenCommand<TResult> {
 
                 return "Automatic";
             } else {
+                const bodyPromise = this.setResponseAsync(bodyStream, false);
                 bodyStream.resume();
-                const rawBody = await StreamUtil.readToEnd(bodyStream);
-                this.setResponseRaw(response, rawBody);
+                await bodyPromise;
             }
 
             return "Automatic";
