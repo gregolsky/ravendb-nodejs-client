@@ -71,7 +71,14 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
 
         return RavenCommandResponsePipeline.create()
             .parseJsonAsync([ "Results", true ])
-            .streamKeyCaseTransform({ defaultTransform: "camel" })
+            .streamKeyCaseTransform({
+                defaultTransform: "camel",
+                paths: [
+                    {
+                        path: /result\.(results|includes)/
+                    }
+                ]
+            })
             .collectResult({
                 initResult: [] as GetResponse[],
                 reduceResults: (result: GetResponse[], next: GetResponse, i) => {
