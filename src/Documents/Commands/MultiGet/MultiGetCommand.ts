@@ -75,7 +75,8 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
                 defaultTransform: "camel",
                 paths: [
                     {
-                        path: /result\.(results|includes)/
+                        path: /result\.(results|includes)/,
+                        transform: "camel"
                     }
                 ]
             })
