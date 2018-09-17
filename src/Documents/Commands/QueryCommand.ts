@@ -94,7 +94,7 @@ export class QueryCommand extends RavenCommand<QueryResult> {
             return;
         }
         
-        const collectResultOpts: CollectResultStreamOptions<DocumentsResult> = {
+        const collectResultOpts: CollectResultStreamOptions<DocumentsResult, object> = {
             reduceResults: (result: DocumentsResult, chunk: { path: string | any[], value: object }) => {
                 const doc = chunk.value;
                 const path = chunk.path;
@@ -155,7 +155,7 @@ export class FacetQueryCommand extends QueryCommand {
             return;
         }
         
-        const collectResultOpts: CollectResultStreamOptions<DocumentsResult> = {
+        const collectResultOpts: CollectResultStreamOptions<DocumentsResult, object> = {
             reduceResults: (result: DocumentsResult, chunk: { path: string | any[], value: object }) => {
                 const doc = chunk.value;
                 const path = chunk.path;
@@ -178,7 +178,7 @@ export class FacetQueryCommand extends QueryCommand {
         return RavenCommandResponsePipeline.create()
             .collectBody()
             .parseJsonAsync(QUERY_DOCS_JSON_PATH)
-            .streamKeyCaseTransform({ defaultTransform: "camel" })
+            .streamKeyCaseTransform(this._conventions.entityFieldNameConvention, "DOCUMENT_LOAD")
             .restKeyCaseTransform({ defaultTransform: "camel" })
             .collectResult(collectResultOpts)
             .process(bodyStream)

@@ -77,8 +77,8 @@ export abstract class RavenCommand<TResult> {
             .then(() => {});
     }
 
-    protected _getDefaultResponsePipeline(): RavenCommandResponsePipeline<TResult> {
-        return RavenCommandResponsePipeline.create<TResult>()
+    protected _getDefaultResponsePipeline(): RavenCommandResponsePipeline<TResult, object> {
+        return RavenCommandResponsePipeline.create<TResult, object>()
             .parseJsonSync()
             .collectBody()
             .streamKeyCaseTransform({

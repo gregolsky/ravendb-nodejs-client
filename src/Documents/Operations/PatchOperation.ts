@@ -8,11 +8,11 @@ import { IDocumentStore } from "../IDocumentStore";
 import { DocumentConventions } from "../Conventions/DocumentConventions";
 import { HttpCache } from "../../Http/HttpCache";
 import { ServerNode } from "../../Http/ServerNode";
-import { JsonSerializer } from "../../Mapping/Json/Serializer";
-import { ObjectKeysTransform } from "../../Mapping/ObjectMapper";
 import { PatchResult } from "./PatchResult";
 import * as stream from "readable-stream";
-import { RavenCommandResponsePipeline, IRavenCommandResponsePipelineResult } from "../../Http/RavenCommandResponsePipeline";
+import { 
+    RavenCommandResponsePipeline, 
+    IRavenCommandResponsePipelineResult } from "../../Http/RavenCommandResponsePipeline";
 import { getIgnoreKeyCaseTransformKeysFromDocumentMetadata } from "../../Mapping/Json/Docs";
 import { CollectResultStreamOptions } from "../../Mapping/Json/Streams/CollectResultStream";
 
@@ -169,7 +169,7 @@ export class PatchCommand extends RavenCommand<PatchResult> {
             return;
         }
 
-        const collectResultOpts: CollectResultStreamOptions<PatchResult> = {
+        const collectResultOpts: CollectResultStreamOptions<PatchResult, object> = {
             initResult: {} as PatchResult ,
             reduceResults: (result, { path, value }: { path: string[], value: any }) => {
                 if (path[0] === "ModifiedDocument") {

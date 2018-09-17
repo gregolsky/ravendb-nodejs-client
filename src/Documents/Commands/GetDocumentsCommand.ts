@@ -205,7 +205,7 @@ export class GetDocumentsCommand extends RavenCommand<GetDocumentsResult> {
             return;
         }
         
-        const collectResultOpts: CollectResultStreamOptions<DocumentsResult> = {
+        const collectResultOpts: CollectResultStreamOptions<DocumentsResult, object> = {
             reduceResults: (result: DocumentsResult, chunk: { path: string | any[], value: object }) => {
                 const doc = chunk.value;
                 const path = chunk.path;
@@ -234,21 +234,8 @@ export class GetDocumentsCommand extends RavenCommand<GetDocumentsResult> {
         return RavenCommandResponsePipeline.create()
             .collectBody()
             .parseJsonAsync(LOAD_DOCS_JSON_PATH)
-            .streamKeyCaseTransform({
-                defaultTransform: this._conventions.entityFieldNameConvention,
-                extractIgnorePaths: (e) => [ 
-                    ...getIgnoreKeyCaseTransformKeysFromDocumentMetadata(e), 
-                    CONSTANTS.Documents.Metadata.IGNORE_CASE_TRANSFORM_REGEX
-                ],
-                ignoreKeys: [ /^@/ ],
-                paths: [
-                    {
-                        transform: "camel",
-                        path: /@metadata\.@attachments/
-                    }
-                ]
-            })
-            .restKeyCaseTransform({ defaultTransform: "camel" })
+            .streamKeyCaseTransform(this._conventions.entityFieldNameConvention, "DOCUMENT_LOAD")
+            .restKeyCaseTransform("camel")
             .collectResult(collectResultOpts)
             .process(bodyStream)
             .then((result: IRavenCommandResponsePipelineResult<DocumentsResult>) => {

@@ -1,16 +1,25 @@
 import * as stream from "readable-stream";
-import * as ObjectUtil from "../../../Utility/ObjectUtil";
-import { DocumentsResult } from "../../../Documents/Commands/GetDocumentsCommand";
 
-export interface CollectResultStreamOptions<TResult> {
-    reduceResults: (result: TResult, next: any) => TResult;
+export interface CollectResultStreamOptions<TResult, TItem> {
+    reduceResults: (
+        result: TResult,
+        next: TItem, 
+        index?: number) => TResult;
     initResult: TResult;
 }
 
-export class CollectResultStream<T> extends stream.Writable {
+export function lastResult<TResult, TItem>(_: TResult, chunk: TItem) { 
+    return chunk;
+}
 
-    private _result: T; // DocumentsResult = { results: [], includes: {} };
-    private _reduceResults: (result: T, next: any) => T;
+export class CollectResultStream<TResult, TItem> extends stream.Writable {
+
+    private _resultIndex = 0;
+    private _result: TResult; 
+    private _reduceResults: (
+        result: TResult, 
+        next: TItem, 
+        index?: number) => TResult;
 
     private _resultPromise = new Promise((resolve, reject) => {
         this._resolver = { resolve, reject };
@@ -18,23 +27,22 @@ export class CollectResultStream<T> extends stream.Writable {
 
     private _resolver: { resolve: Function, reject: Function };
 
-    get promise(): Promise<T> {
-        return this._resultPromise as Promise<T>;
+    get promise(): Promise<TResult> {
+        return this._resultPromise as Promise<TResult>;
     }
 
-    constructor(opts: CollectResultStreamOptions<T>) {
+    constructor(opts: CollectResultStreamOptions<TResult, TItem>) {
         super({ objectMode: true });
 
         super.once("finish", () => {
             this._resolver.resolve(this._result);
         });
 
-        const lastResult = (_: T, chunk: T) => chunk;
-        this._reduceResults = opts.reduceResults || lastResult;
+        this._reduceResults = opts.reduceResults || lastResult as (result: TResult, item: TItem) => TResult;
         this._result = opts.initResult || null;
     }
 
-    public static collectArray<TItem>(handleEmitPath?: boolean): CollectResultStreamOptions<TItem[]> {
+    public static collectArray<TItem>(handleEmitPath?: boolean): CollectResultStreamOptions<TItem[], TItem> {
         return {
             initResult: [] as TItem[],
             reduceResults: (result: TItem[], n: TItem) => 
@@ -42,8 +50,10 @@ export class CollectResultStream<T> extends stream.Writable {
         };
     }
 
+    // tslint:disable-next-line:function-name
     public _write(chunk, enc, callback) {
-        this._result = this._reduceResults(this._result, chunk);
+        this._result = this._reduceResults(this._result, chunk, this._resultIndex);
+        this._resultIndex++;
         callback();
     }
 }

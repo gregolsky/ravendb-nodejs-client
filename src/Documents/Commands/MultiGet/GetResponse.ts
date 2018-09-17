@@ -9,6 +9,10 @@ export class GetResponse {
     private _statusCode: number;
     private _forceRetry;
 
+    public static create(data: object) {
+        return Object.assign(new GetResponse(), data);
+    }
+
     /**
      * @return Response result as JSON.
      */

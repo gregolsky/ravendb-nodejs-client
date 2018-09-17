@@ -8,6 +8,7 @@ import { ServerNode } from "../../../Http/ServerNode";
 import { throwError } from "../../../Exceptions";
 import { StatusCodes } from "../../../Http/StatusCode";
 import { getEtagHeader } from "../../../Utility/HttpUtil";
+import { RavenCommandResponsePipeline } from "../../../Http/RavenCommandResponsePipeline";
 
 export class MultiGetCommand extends RavenCommand<GetResponse[]> {
     private _cache: HttpCache;
@@ -64,15 +65,30 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
    }
 
     public async setResponseAsync(bodyStream: stream.Stream, fromCache: boolean): Promise<string> {
-        if (this._responseType === "Empty" || this._responseType === "Raw") {
+        if (!bodyStream) {
             this._throwInvalidResponse();
         }
 
-        return throwError("NotSupportedException",
-            this.constructor.name +
-            " command must override the setResponseAsync()" +
-            " method which expects response with the following type: " +
-            this._responseType);
+        return RavenCommandResponsePipeline.create()
+            .parseJsonAsync([ "Results", true ])
+            .streamKeyCaseTransform({ defaultTransform: "camel" })
+            .collectResult({
+                initResult: [] as GetResponse[],
+                reduceResults: (result: GetResponse[], next: GetResponse, i) => {
+                    debugger;
+                    console.log(next);
+                    const command = this._commands[i];
+                    this._maybeSetCache(next, command);
+                    this._maybeReadFromCache(next, command);
+                    return [...result, next] as GetResponse[];
+                }
+            })
+            .process(bodyStream)
+            .then(pipelineResult => {
+                this.result = (pipelineResult.result as object[])
+                    .map(x => GetResponse.create(x));
+                return null;
+            });
     }
 
     private _maybeReadFromCache(getResponse: GetResponse, command: GetRequest): void {
@@ -82,7 +98,7 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
 
        const cacheKey = this._getCacheKey(command);
        let cachedResponse;
-       this._cache.get(cacheKey, _ => cachedResponse = _.response);
+       this._cache.get(cacheKey, x => cachedResponse = x.response);
        getResponse.result = cachedResponse;
     }
 
@@ -108,103 +124,4 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
     public get isReadRequest(): boolean {
         return false;
     }
-
-//    public setResponseRaw(CloseableHttpResponse response, InputStream stream): void {
-//        try (JsonParser parser = mapper.getFactory().createParser(stream)) {
-//            if (parser.nextToken() != JsonToken.START_OBJECT) {
-//                throwInvalidResponse();
-//            }
-//             String property = parser.nextFieldName();
-//            if (!"Results".equals(property)) {
-//                throwInvalidResponse();
-//            }
-//             int i = 0;
-//            result = new ArrayList<>();
-//             for (GetResponse getResponse : readResponses(mapper, parser)) {
-//                GetRequest command = _commands.get(i);
-//                maybeSetCache(getResponse, command);
-//                maybeReadFromCache(getResponse, command);
-//                 result.add(getResponse);
-//                 i++;
-//            }
-//             if (parser.nextToken() != JsonToken.END_OBJECT) {
-//                throwInvalidResponse();
-//            }
-//         } catch (Exception e) {
-//            throwInvalidResponse(e);
-//        }
-//    }
-//     private static List<GetResponse> readResponses(ObjectMapper mapper, JsonParser parser) throws IOException {
-//        if (parser.nextToken() != JsonToken.START_ARRAY) {
-//            throwInvalidResponse();
-//        }
-//         List<GetResponse> responses = new ArrayList<>();
-//         while (true) {
-//            if (parser.nextToken() == JsonToken.END_ARRAY) {
-//                break;
-//            }
-//             responses.add(readResponse(mapper, parser));
-//        }
-//         return responses;
-//    }
-//     private static GetResponse readResponse(ObjectMapper mapper, JsonParser parser) throws IOException {
-//        if (parser.currentToken() != JsonToken.START_OBJECT) {
-//            throwInvalidResponse();
-//        }
-//         GetResponse getResponse = new GetResponse();
-//         while (true) {
-//            if (parser.nextToken() == null) {
-//                throwInvalidResponse();
-//            }
-//             if (parser.currentToken() == JsonToken.END_OBJECT) {
-//                break;
-//            }
-//             if (parser.currentToken() != JsonToken.FIELD_NAME) {
-//                throwInvalidResponse();
-//            }
-//             String property = parser.getValueAsString();
-//            switch (property) {
-//                case "Result":
-//                    JsonToken jsonToken = parser.nextToken();
-//                    if (jsonToken == null) {
-//                        throwInvalidResponse();
-//                    }
-//                     if (parser.currentToken() == JsonToken.VALUE_NULL) {
-//                        continue;
-//                    }
-//                     if (parser.currentToken() != JsonToken.START_OBJECT) {
-//                        throwInvalidResponse();
-//                    }
-//                     TreeNode treeNode = mapper.readTree(parser);
-//                    getResponse.setResult(treeNode.toString());
-//                    continue;
-//                case "Headers":
-//                    if (parser.nextToken() == null) {
-//                        throwInvalidResponse();
-//                    }
-//                     if (parser.currentToken() == JsonToken.VALUE_NULL) {
-//                        continue;
-//                    }
-//                     if (parser.currentToken() != JsonToken.START_OBJECT) {
-//                        throwInvalidResponse();
-//                    }
-//                     ObjectNode headersMap = mapper.readTree(parser);
-//                    headersMap.fieldNames().forEachRemaining(field -> {
-//                        getResponse.getHeaders().put(field, headersMap.get(field).asText());
-//                    });
-//                    continue;
-//                case "StatusCode":
-//                    int statusCode = parser.nextIntValue(-1);
-//                    if (statusCode == -1) {
-//                        throwInvalidResponse();
-//                    }
-//                     getResponse.setStatusCode(statusCode);
-//                    continue;
-//                default:
-//                    throwInvalidResponse();
-//                    break;
-//             }
-//         }
-//         return getResponse;
-//    }
 }

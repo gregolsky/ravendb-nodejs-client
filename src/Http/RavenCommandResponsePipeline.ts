@@ -1,8 +1,12 @@
 import { 
     ObjectKeyCaseTransformStreamOptions, 
     ObjectKeyCaseTransformStream } from "../Mapping/Json/Streams/ObjectKeyCaseTransformStream";
-import { gatherJsonNotMatchingPath } from "../Mapping/Json/Streams";
-import { ObjectUtil, ObjectChangeCaseOptions } from "../Utility/ObjectUtil";
+import { 
+    gatherJsonNotMatchingPath } from "../Mapping/Json/Streams";
+import {
+    ObjectKeyCaseTransformProfile,
+    getObjectKeyCaseTransformProfile } from "../Mapping/Json/Conventions";
+import { ObjectUtil, CasingConvention } from "../Utility/ObjectUtil";
 import * as through2 from "through2";
 import * as StreamUtil from "../Utility/StreamUtil";
 import * as stream from "readable-stream";
@@ -10,7 +14,7 @@ import * as JSONStream from "JSONStream";
 import { CollectResultStream, CollectResultStreamOptions } from "../Mapping/Json/Streams/CollectResultStream";
 import { throwError } from "../Exceptions";
 
-export interface RavenCommandResponsePipelineOptions<TResult> {
+export interface RavenCommandResponsePipelineOptions<TResult, TStreamItem> {
     collectBody?: boolean;
     jsonAsync?: {
         resultsPath?: string | any[];
@@ -18,7 +22,7 @@ export interface RavenCommandResponsePipelineOptions<TResult> {
     jsonSync?: boolean;
     streamKeyCaseTransform?: ObjectKeyCaseTransformStreamOptions;
     restKeyCaseTransform?: ObjectKeyCaseTransformStreamOptions;
-    collectResult: CollectResultStreamOptions<TResult>;
+    collectResult: CollectResultStreamOptions<TResult, TStreamItem>;
     transform?: stream.Stream;
 } 
 
@@ -28,20 +32,20 @@ export interface IRavenCommandResponsePipelineResult<T> {
     rest?: object;
 }
 
-export class RavenCommandResponsePipeline<TResult> {
+export class RavenCommandResponsePipeline<TStreamResult, TChunk> {
 
-    private _opts: RavenCommandResponsePipelineOptions<TResult>;
+    private _opts: RavenCommandResponsePipelineOptions<TStreamResult, TChunk>;
 
     private constructor() {
         this._opts = {
             collectResult: {
-                initResult: {},
+                initResult: {} as TStreamResult,
                 reduceResults: (result, next) => Object.assign(result, next)
             }
-        } as RavenCommandResponsePipelineOptions<TResult>;
+        } as RavenCommandResponsePipelineOptions<TStreamResult, TChunk>;
     }
 
-    public static create<TResult>(): RavenCommandResponsePipeline<TResult> {
+    public static create<TResult, TStreamItem>(): RavenCommandResponsePipeline<TResult, TStreamItem> {
         return new RavenCommandResponsePipeline();
     }
 
@@ -62,7 +66,19 @@ export class RavenCommandResponsePipeline<TResult> {
         return this;
     }
 
-    public streamKeyCaseTransform(opts: ObjectKeyCaseTransformStreamOptions) {
+    public streamKeyCaseTransform(defaultTransform: CasingConvention, profile: ObjectKeyCaseTransformProfile);
+    public streamKeyCaseTransform(opts: ObjectKeyCaseTransformStreamOptions);
+    public streamKeyCaseTransform(
+        opts: CasingConvention | ObjectKeyCaseTransformStreamOptions, 
+        profile?: ObjectKeyCaseTransformProfile) {
+        if (!opts) {
+            throwError("InvalidArgumentException", "opts cannot be null.");
+        }
+
+        if (typeof opts === "string") {
+            return getObjectKeyCaseTransformProfile(opts, profile);
+        }
+
         if (!this._opts.jsonAsync && !this._opts.jsonSync) {
             throwError("InvalidOperationException", 
                 "Cannot use key case transform without doing parseJson() or parseJsonAsync() first.");
@@ -72,7 +88,7 @@ export class RavenCommandResponsePipeline<TResult> {
         return this;
     }
 
-    public collectResult(opts: CollectResultStreamOptions<TResult>) {
+    public collectResult(opts: CollectResultStreamOptions<TStreamResult, TChunk>) {
         this._opts.collectResult = opts;
         return this;
     }
@@ -87,8 +103,7 @@ export class RavenCommandResponsePipeline<TResult> {
         return this;
     }
 
-    public process(
-        src: stream.Stream): Promise<IRavenCommandResponsePipelineResult<TResult>> {
+    public process(src: stream.Stream): Promise<IRavenCommandResponsePipelineResult<TStreamResult>> {
 
         if (!src) {
             throwError("MappingError", "Body stream cannot be null.");
