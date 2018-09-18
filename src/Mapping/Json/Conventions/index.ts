@@ -29,7 +29,7 @@ export type ObjectKeyCaseTransformProfile =
     | "DOCUMENT_QUERY";
 
 export function getObjectKeyCaseTransformProfile(
-    defaultTransform: CasingConvention, profile: ObjectKeyCaseTransformProfile): ObjectKeyCaseTransformStreamOptions {
+    defaultTransform: CasingConvention, profile?: ObjectKeyCaseTransformProfile): ObjectKeyCaseTransformStreamOptions {
     switch (profile) {
         case "DOCUMENT_LOAD":
         case "DOCUMENT_QUERY":

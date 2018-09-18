@@ -11,7 +11,7 @@ export class Xyz {
     public id: string;
 }
 
-describe("LoadAllStartingWith", function () {
+describe.skip("LoadAllStartingWith", function () {
 
     let store: IDocumentStore;
 

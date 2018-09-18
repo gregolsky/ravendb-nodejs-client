@@ -433,7 +433,6 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
 
     private async _executeLazyOperationsSingleStep(
         responseTimeInformation: ResponseTimeInformation, requests: GetRequest[]): Promise<boolean> {
-        debugger;
         const multiGetOperation = new MultiGetOperation(this);
         const multiGetCommand = multiGetOperation.createRequest(requests);
         await this.requestExecutor.execute(multiGetCommand, this._sessionInfo);

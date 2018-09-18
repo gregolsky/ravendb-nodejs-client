@@ -45,7 +45,7 @@ describe("QueryTest", function () {
         const names = new Set(queryResult.map(x => x.name));
         const expectedNames = new Set(users.map(x => x.name));
         for (const name of names) {
-            assert.ok(names.has(name));
+            assert.ok(expectedNames.has(name));
         }
     });
 

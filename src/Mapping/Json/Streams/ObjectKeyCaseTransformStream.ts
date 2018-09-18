@@ -7,7 +7,7 @@ export interface ObjectKeyCaseTransformStreamOptionsBase extends ObjectChangeCas
 }
 export interface ObjectKeyCaseTransformStreamOptions 
     extends ObjectChangeCaseOptions {
-    handlePath?: boolean;
+    handleKeyValue?: boolean;
     extractIgnorePaths?: ((entry: object) => Array<string | RegExp>);
 }
 
@@ -22,7 +22,7 @@ export class ObjectKeyCaseTransformStream extends stream.Transform {
     private _getIgnorePaths: (entry: object) => Array<string | RegExp> = 
         () => this._ignorePaths
 
-    private _handlePath: boolean;
+    private _handleKeyValue: boolean;
 
     constructor(private _opts: ObjectKeyCaseTransformStreamOptions) {
         super({ objectMode: true });
@@ -34,18 +34,17 @@ export class ObjectKeyCaseTransformStream extends stream.Transform {
             this._getIgnorePaths = _opts.extractIgnorePaths;
         } 
 
-        this._handlePath = _opts.handlePath;
+        this._handleKeyValue = _opts.handleKeyValue;
     }
 
     // tslint:disable-next-line:function-name
     public _transform(chunk: any, enc: string, callback) {
-        let entry = this._handlePath 
-            ? chunk.value : chunk;
+        let entry = this._handleKeyValue ? chunk["value"] : chunk;
+        const key = chunk["key"];
         if (TypeUtil.isPrimitive(entry)) {
             return callback(null, chunk);
         }
 
-        const entryPath = this._handlePath ? chunk.path : null;
         const ignorePaths = this._getIgnorePaths(entry);
         const opts = Object.assign({}, this._opts);
         opts.ignorePaths = [...new Set((opts.ignorePaths || [])
@@ -53,9 +52,8 @@ export class ObjectKeyCaseTransformStream extends stream.Transform {
 
         process.nextTick(() => {
             entry = ObjectUtil.transformObjectKeys(entry, opts);
-            
-            const data = this._handlePath
-                ? { path: entryPath, value: entry }
+            const data = this._handleKeyValue
+                ? { key, value: entry }
                 : entry;
             callback(null, data);
         });

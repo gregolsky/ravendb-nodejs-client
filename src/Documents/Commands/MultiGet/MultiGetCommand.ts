@@ -83,8 +83,6 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
             .collectResult({
                 initResult: [] as GetResponse[],
                 reduceResults: (result: GetResponse[], next: GetResponse, i) => {
-                    debugger;
-                    console.log(next);
                     const command = this._commands[i];
                     this._maybeSetCache(next, command);
                     this._maybeReadFromCache(next, command);

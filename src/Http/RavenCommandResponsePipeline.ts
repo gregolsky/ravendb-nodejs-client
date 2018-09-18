@@ -1,3 +1,4 @@
+import { parser } from "stream-json";
 import { 
     ObjectKeyCaseTransformStreamOptions, 
     ObjectKeyCaseTransformStream } from "../Mapping/Json/Streams/ObjectKeyCaseTransformStream";
@@ -11,42 +12,43 @@ import * as through2 from "through2";
 import * as StreamUtil from "../Utility/StreamUtil";
 import * as stream from "readable-stream";
 import * as JSONStream from "JSONStream";
-import { CollectResultStream, CollectResultStreamOptions } from "../Mapping/Json/Streams/CollectResultStream";
+import { 
+    CollectResultStream, 
+    CollectResultStreamOptions, 
+    lastValue, lastChunk } from "../Mapping/Json/Streams/CollectResultStream";
 import { throwError } from "../Exceptions";
+import { EventEmitter } from "events";
 
-export interface RavenCommandResponsePipelineOptions<TResult, TStreamItem> {
-    collectBody?: boolean;
+export interface RavenCommandResponsePipelineOptions<TResult> {
+    collectBody?: boolean | ((body: string) => void);
+    jsonAsync2?: {
+        filters: any[]
+    };
     jsonAsync?: {
         resultsPath?: string | any[];
     };
     jsonSync?: boolean;
     streamKeyCaseTransform?: ObjectKeyCaseTransformStreamOptions;
-    restKeyCaseTransform?: ObjectKeyCaseTransformStreamOptions;
-    collectResult: CollectResultStreamOptions<TResult, TStreamItem>;
+    collectResult: CollectResultStreamOptions<TResult>;
     transform?: stream.Stream;
 } 
 
-export interface IRavenCommandResponsePipelineResult<T> {
-    result: T;
-    body?: string;
-    rest?: object;
-}
+export class RavenCommandResponsePipeline<TStreamResult> extends EventEmitter {
 
-export class RavenCommandResponsePipeline<TStreamResult, TChunk> {
-
-    private _opts: RavenCommandResponsePipelineOptions<TStreamResult, TChunk>;
+    private _opts: RavenCommandResponsePipelineOptions<TStreamResult>;
 
     private constructor() {
-        this._opts = {
-            collectResult: {
-                initResult: {} as TStreamResult,
-                reduceResults: (result, next) => Object.assign(result, next)
-            }
-        } as RavenCommandResponsePipelineOptions<TStreamResult, TChunk>;
+        super();
+        this._opts = {} as RavenCommandResponsePipelineOptions<TStreamResult>;
     }
 
-    public static create<TResult, TStreamItem>(): RavenCommandResponsePipeline<TResult, TStreamItem> {
+    public static create<TResult>(): RavenCommandResponsePipeline<TResult> {
         return new RavenCommandResponsePipeline();
+    }
+
+    public parseJsonAsync2(filters: any[]) {
+        this._opts.jsonAsync2 = { filters };
+        return this;
     }
 
     public parseJsonAsync(jsonStreamOpts?: string | any[]) {
@@ -61,40 +63,48 @@ export class RavenCommandResponsePipeline<TStreamResult, TChunk> {
         return this;
     }
 
-    public collectBody() {
-        this._opts.collectBody = true;
+    public collectBody(callback?: (body: string) => void) {
+        this._opts.collectBody = callback || true;
         return this;
     }
 
-    public streamKeyCaseTransform(defaultTransform: CasingConvention, profile: ObjectKeyCaseTransformProfile);
-    public streamKeyCaseTransform(opts: ObjectKeyCaseTransformStreamOptions);
+    public streamKeyCaseTransform(defaultTransform: CasingConvention, profile?: ObjectKeyCaseTransformProfile): this;
+    public streamKeyCaseTransform(opts: ObjectKeyCaseTransformStreamOptions): this;
     public streamKeyCaseTransform(
-        opts: CasingConvention | ObjectKeyCaseTransformStreamOptions, 
-        profile?: ObjectKeyCaseTransformProfile) {
-        if (!opts) {
-            throwError("InvalidArgumentException", "opts cannot be null.");
-        }
+        optsOrTransform: CasingConvention | ObjectKeyCaseTransformStreamOptions, 
+        profile?: ObjectKeyCaseTransformProfile): this {
 
-        if (typeof opts === "string") {
-            return getObjectKeyCaseTransformProfile(opts, profile);
-        }
-
-        if (!this._opts.jsonAsync && !this._opts.jsonSync) {
-            throwError("InvalidOperationException", 
+        if (!this._opts.jsonAsync2 && !this._opts.jsonAsync && !this._opts.jsonSync) {
+            throwError("InvalidOperationException",
                 "Cannot use key case transform without doing parseJson() or parseJsonAsync() first.");
         }
 
-        this._opts.streamKeyCaseTransform = opts;
+        if (!optsOrTransform || typeof optsOrTransform === "string") {
+            this._opts.streamKeyCaseTransform = 
+                getObjectKeyCaseTransformProfile(optsOrTransform as CasingConvention, profile);
+        } else {
+            this._opts.streamKeyCaseTransform = optsOrTransform;
+        }
+
+        if (this._opts.jsonAsync2) {
+            this._opts.streamKeyCaseTransform.handleKeyValue = true;
+        }
+
         return this;
     }
 
-    public collectResult(opts: CollectResultStreamOptions<TStreamResult, TChunk>) {
-        this._opts.collectResult = opts;
-        return this;
-    }
+    public collectResult(reduce: (result: TStreamResult, next: object) => TStreamResult, init: TStreamResult);
+    public collectResult(opts: CollectResultStreamOptions<TStreamResult>);
+    public collectResult(
+        optsOrReduce: CollectResultStreamOptions<TStreamResult> 
+        | ((result: TStreamResult, next: object) => TStreamResult), 
+        init?: TStreamResult): this {
+        if (typeof optsOrReduce === "function") {
+            this._opts.collectResult = { reduceResults: optsOrReduce, initResult: init };
+        } else {
+            this._opts.collectResult = optsOrReduce;
+        }
 
-    public restKeyCaseTransform(opts: ObjectKeyCaseTransformStreamOptions) {
-        this._opts.restKeyCaseTransform = opts;
         return this;
     }
 
@@ -103,8 +113,7 @@ export class RavenCommandResponsePipeline<TStreamResult, TChunk> {
         return this;
     }
 
-    public process(src: stream.Stream): Promise<IRavenCommandResponsePipelineResult<TStreamResult>> {
-
+    public process(src: stream.Stream): Promise<TStreamResult> {
         if (!src) {
             throwError("MappingError", "Body stream cannot be null.");
         }
@@ -112,8 +121,6 @@ export class RavenCommandResponsePipeline<TStreamResult, TChunk> {
         const opts = this._opts;
         const streams: stream.Stream[] = [ src ];
         let body;
-        let restPromise = Promise.resolve<object>(null);
-
         if (opts.collectBody) {
             body = "";
             streams.push(through2(function (chunk, enc, callback) {
@@ -122,17 +129,11 @@ export class RavenCommandResponsePipeline<TStreamResult, TChunk> {
             }));
         }
 
-        if (opts.jsonAsync) {
+        if (opts.jsonAsync2) {
+            streams.push(parser());
+            streams.push(...this._opts.jsonAsync2.filters);
+        } else if (opts.jsonAsync) {
             const jsonStream = JSONStream.parse(opts.jsonAsync.resultsPath);
-            if (opts.jsonAsync.resultsPath) {
-                restPromise = gatherJsonNotMatchingPath(jsonStream);
-
-                if (opts.restKeyCaseTransform && opts.restKeyCaseTransform) {
-                    restPromise = restPromise.then(data =>
-                        ObjectUtil.transformObjectKeys(data, opts.restKeyCaseTransform));
-                }
-            }
-
             streams.push(jsonStream);
         } else if (opts.jsonSync) {
             let json = "";
@@ -167,18 +168,31 @@ export class RavenCommandResponsePipeline<TStreamResult, TChunk> {
             streams.push(opts.transform);
         }
 
-        const collectResult = new CollectResultStream(opts.collectResult);
-        streams.push(collectResult);
-        const resultsPromise = collectResult.promise;
+        let collectResultsOpts = opts.collectResult;
+        if (!collectResultsOpts || !collectResultsOpts.reduceResults) {
+            if (opts.jsonAsync2) {
+                collectResultsOpts = { reduceResults: lastValue as any };
+            } else {
+                collectResultsOpts = { reduceResults: lastChunk as any };
+            }
+        }
 
-        return StreamUtil.pipelineAsync(...streams)
-        .then(() => Promise.all([ resultsPromise, restPromise ])) 
-        .then(([result, rest]) => {
-            return {
-                result,
-                rest,
-                body
-            };
-        });
+        const collectResult = new CollectResultStream(collectResultsOpts);
+        streams.push(collectResult);
+
+        const resultsPromise = collectResult.promise
+            .then(result => {
+                
+                if (opts.collectBody) {
+                    this.emit("body", body);
+                    if (typeof opts.collectBody === "function") {
+                        opts.collectBody(body);
+                    }
+                }
+
+                return result;
+            });
+
+        return StreamUtil.pipelineAsync(...streams).then(() => resultsPromise);
     }
 }

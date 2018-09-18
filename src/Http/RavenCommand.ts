@@ -18,6 +18,8 @@ import {
     ObjectKeyCaseTransformStreamOptions, 
     ObjectKeyCaseTransformStream 
 } from "../Mapping/Json/Streams/ObjectKeyCaseTransformStream";
+import { pick } from "stream-json/filters/Pick";
+import { ignore } from "stream-json/filters/Ignore";
 
 const log = getLogger({ module: "RavenCommand" });
 
@@ -77,13 +79,12 @@ export abstract class RavenCommand<TResult> {
             .then(() => {});
     }
 
-    protected _getDefaultResponsePipeline(): RavenCommandResponsePipeline<TResult, object> {
-        return RavenCommandResponsePipeline.create<TResult, object>()
+    protected _defaultPipeline(
+        bodyCallback?: (body: string) => void): RavenCommandResponsePipeline<TResult> {
+        return this._pipeline<TResult>()
             .parseJsonSync()
-            .collectBody()
-            .streamKeyCaseTransform({
-                defaultTransform: "camel"
-            });
+            .collectBody(bodyCallback)
+            .streamKeyCaseTransform("camel");
     }
 
     public async setResponseAsync(bodyStream: stream.Stream, fromCache: boolean): Promise<string> {
@@ -182,7 +183,8 @@ export abstract class RavenCommand<TResult> {
             return "Automatic";
         } catch (err) {
             log.error(err, `Error processing command ${this.constructor.name} response.`);
-            throwError("RavenException", `Error processing command ${this.constructor.name} response.`, err);
+            throwError("RavenException", 
+                `Error processing command ${this.constructor.name} response: ${err.stack}`, err);
         } finally {
             closeHttpResponse(response);
             // response.destroy(); 
@@ -223,13 +225,10 @@ export abstract class RavenCommand<TResult> {
         return this._typedObjectMapper.fromObjectLiteral<TResponse>(raw, typeInfo, knownTypes);
     }
 
-    protected _parseResponseDefaultAsync(bodyStream: stream.Stream) {
-        return this._getDefaultResponsePipeline()
-            .process(bodyStream)
-            .then(results => {
-                this.result = results.result;
-                return results.body;
-            });
+    protected async _parseResponseDefaultAsync(bodyStream: stream.Stream): Promise<string> {
+        let body;
+        this.result = await this._defaultPipeline(_ => body = _).process(bodyStream);
+        return body;
     }
 
     protected _getHeaders() {
@@ -246,4 +245,8 @@ export abstract class RavenCommand<TResult> {
 
     // tslint:disable-next-line:no-empty
     public onResponseFailure(response: HttpResponse): void { }
+
+    protected _pipeline<TPipelineResult>() {
+        return RavenCommandResponsePipeline.create<TPipelineResult>();
+    }
 }
