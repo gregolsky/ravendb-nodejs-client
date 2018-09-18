@@ -14,7 +14,7 @@ export function parseDocumentResults<TResult>(
 
     return RavenCommandResponsePipeline.create<object[]>()
         .collectBody(bodyCallback)
-        .parseJsonAsync2([
+        .parseJsonAsync([
             pick({ filter: "Results" }),
             streamArray()
         ])
@@ -27,7 +27,7 @@ export function parseRestOfOutput(
     bodyStream: stream.Stream,
     ignoreFields: string | RegExp): Promise<object> {
     return RavenCommandResponsePipeline.create()
-        .parseJsonAsync2([
+        .parseJsonAsync([
             ignore({ filter: ignoreFields }),
             streamValues()
         ])
@@ -39,7 +39,7 @@ export function parseDocumentIncludes(
     bodyStream: stream.Stream,
     conventions: DocumentConventions) {
     return RavenCommandResponsePipeline.create<{ [key: string]: object }>()
-            .parseJsonAsync2([
+            .parseJsonAsync([
                 pick({ filter: "Includes" }),
                 streamObject()
             ])

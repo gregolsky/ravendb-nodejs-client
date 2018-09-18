@@ -8,7 +8,10 @@ import { ServerNode } from "../../../Http/ServerNode";
 import { throwError } from "../../../Exceptions";
 import { StatusCodes } from "../../../Http/StatusCode";
 import { getEtagHeader } from "../../../Utility/HttpUtil";
-import { RavenCommandResponsePipeline } from "../../../Http/RavenCommandResponsePipeline";
+import { streamArray } from "stream-json/streamers/StreamArray";
+import { streamObject } from "stream-json/streamers/StreamObject";
+import { pick } from "stream-json/filters/Pick";
+import { ignore } from "stream-json/filters/Ignore";
 
 export class MultiGetCommand extends RavenCommand<GetResponse[]> {
     private _cache: HttpCache;
@@ -69,13 +72,16 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
             this._throwInvalidResponse();
         }
 
-        return RavenCommandResponsePipeline.create()
-            .parseJsonAsync([ "Results", true ])
+        return this._pipeline()
+            .parseJsonAsync([
+                pick({ filter: "Results" }),
+                streamArray()
+            ])
             .streamKeyCaseTransform({
                 defaultTransform: "camel",
                 paths: [
                     {
-                        path: /result\.(results|includes)/,
+                        path: /result\.(results|includes)/i,
                         transform: "camel"
                     }
                 ]

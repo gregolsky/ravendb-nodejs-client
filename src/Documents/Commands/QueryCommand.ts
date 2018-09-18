@@ -129,7 +129,7 @@ export class FacetQueryCommand extends QueryCommand {
         let body;
         const resultsPromise = this._pipeline<object[]>()
             .collectBody((_body) => body = _body)
-            .parseJsonAsync2([
+            .parseJsonAsync([
                 pick({ filter: "Results" }),
                 streamArray()
             ])

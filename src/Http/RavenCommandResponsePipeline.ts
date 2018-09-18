@@ -1,3 +1,4 @@
+import { EventEmitter } from "events";
 import { parser } from "stream-json";
 import { 
     ObjectKeyCaseTransformStreamOptions, 
@@ -11,21 +12,16 @@ import { ObjectUtil, CasingConvention } from "../Utility/ObjectUtil";
 import * as through2 from "through2";
 import * as StreamUtil from "../Utility/StreamUtil";
 import * as stream from "readable-stream";
-import * as JSONStream from "JSONStream";
 import { 
     CollectResultStream, 
     CollectResultStreamOptions, 
     lastValue, lastChunk } from "../Mapping/Json/Streams/CollectResultStream";
 import { throwError } from "../Exceptions";
-import { EventEmitter } from "events";
 
 export interface RavenCommandResponsePipelineOptions<TResult> {
     collectBody?: boolean | ((body: string) => void);
-    jsonAsync2?: {
-        filters: any[]
-    };
     jsonAsync?: {
-        resultsPath?: string | any[];
+        filters: any[]
     };
     jsonSync?: boolean;
     streamKeyCaseTransform?: ObjectKeyCaseTransformStreamOptions;
@@ -46,15 +42,8 @@ export class RavenCommandResponsePipeline<TStreamResult> extends EventEmitter {
         return new RavenCommandResponsePipeline();
     }
 
-    public parseJsonAsync2(filters: any[]) {
-        this._opts.jsonAsync2 = { filters };
-        return this;
-    }
-
-    public parseJsonAsync(jsonStreamOpts?: string | any[]) {
-        this._opts.jsonAsync = jsonStreamOpts 
-            ? { resultsPath: jsonStreamOpts }
-            : {};
+    public parseJsonAsync(filters: any[]) {
+        this._opts.jsonAsync = { filters };
         return this;
     }
 
@@ -74,7 +63,7 @@ export class RavenCommandResponsePipeline<TStreamResult> extends EventEmitter {
         optsOrTransform: CasingConvention | ObjectKeyCaseTransformStreamOptions, 
         profile?: ObjectKeyCaseTransformProfile): this {
 
-        if (!this._opts.jsonAsync2 && !this._opts.jsonAsync && !this._opts.jsonSync) {
+        if (!this._opts.jsonAsync && !this._opts.jsonSync) {
             throwError("InvalidOperationException",
                 "Cannot use key case transform without doing parseJson() or parseJsonAsync() first.");
         }
@@ -86,7 +75,7 @@ export class RavenCommandResponsePipeline<TStreamResult> extends EventEmitter {
             this._opts.streamKeyCaseTransform = optsOrTransform;
         }
 
-        if (this._opts.jsonAsync2) {
+        if (this._opts.jsonAsync) {
             this._opts.streamKeyCaseTransform.handleKeyValue = true;
         }
 
@@ -96,8 +85,8 @@ export class RavenCommandResponsePipeline<TStreamResult> extends EventEmitter {
     public collectResult(reduce: (result: TStreamResult, next: object) => TStreamResult, init: TStreamResult);
     public collectResult(opts: CollectResultStreamOptions<TStreamResult>);
     public collectResult(
-        optsOrReduce: CollectResultStreamOptions<TStreamResult> 
-        | ((result: TStreamResult, next: object) => TStreamResult), 
+        optsOrReduce: 
+            CollectResultStreamOptions<TStreamResult> | ((result: TStreamResult, next: object) => TStreamResult), 
         init?: TStreamResult): this {
         if (typeof optsOrReduce === "function") {
             this._opts.collectResult = { reduceResults: optsOrReduce, initResult: init };
@@ -129,12 +118,9 @@ export class RavenCommandResponsePipeline<TStreamResult> extends EventEmitter {
             }));
         }
 
-        if (opts.jsonAsync2) {
+        if (opts.jsonAsync) {
             streams.push(parser());
-            streams.push(...this._opts.jsonAsync2.filters);
-        } else if (opts.jsonAsync) {
-            const jsonStream = JSONStream.parse(opts.jsonAsync.resultsPath);
-            streams.push(jsonStream);
+            streams.push(...this._opts.jsonAsync.filters);
         } else if (opts.jsonSync) {
             let json = "";
             streams.push(through2.obj(
@@ -154,12 +140,7 @@ export class RavenCommandResponsePipeline<TStreamResult> extends EventEmitter {
         }
 
         if (opts.streamKeyCaseTransform) {
-            let handlePath = false;
-            if (opts.jsonAsync && Array.isArray(opts.jsonAsync.resultsPath)) {
-                const path = opts.jsonAsync.resultsPath;
-                handlePath = !!path[path.length - 1]["emitPath"];
-            }
-
+            const handlePath = !!opts.jsonAsync;
             const keyCaseOpts = Object.assign({}, opts.streamKeyCaseTransform, { handlePath });
             streams.push(new ObjectKeyCaseTransformStream(keyCaseOpts));
         }
@@ -170,7 +151,7 @@ export class RavenCommandResponsePipeline<TStreamResult> extends EventEmitter {
 
         let collectResultsOpts = opts.collectResult;
         if (!collectResultsOpts || !collectResultsOpts.reduceResults) {
-            if (opts.jsonAsync2) {
+            if (opts.jsonAsync) {
                 collectResultsOpts = { reduceResults: lastValue as any };
             } else {
                 collectResultsOpts = { reduceResults: lastChunk as any };

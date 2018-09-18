@@ -204,7 +204,7 @@ export class GetDocumentsCommand extends RavenCommand<GetDocumentsResult> {
         const resultsPromise = parseDocumentResults(bodyStream, this._conventions, b => body = b); 
 
         const includesPromise = this._pipeline<{ [key: string]: object }>()
-            .parseJsonAsync2([
+            .parseJsonAsync([
                 pick({ filter: "Includes" }),
                 streamObject()
             ])
@@ -216,7 +216,7 @@ export class GetDocumentsCommand extends RavenCommand<GetDocumentsResult> {
             .process(bodyStream);
         
         const restPromise = this._pipeline()
-            .parseJsonAsync2([
+            .parseJsonAsync([
                 ignore({ filter: /^Results|Includes$/ }),
                 streamObject()
             ])

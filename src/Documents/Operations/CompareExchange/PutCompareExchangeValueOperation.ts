@@ -91,7 +91,7 @@ export class PutCompareExchangeValueCommand<T> extends RavenCommand<CompareExcha
         let body;
         const resultPromise = this._pipeline<object>()
             .collectBody(b => body = b)
-            .parseJsonAsync2([ 
+            .parseJsonAsync([ 
                 pick({ filter: "Value.Object" }),
                 streamValues()
             ])
@@ -99,7 +99,7 @@ export class PutCompareExchangeValueCommand<T> extends RavenCommand<CompareExcha
             .process(bodyStream);
         
         const restPromise = this._pipeline<object>()
-            .parseJsonAsync2([
+            .parseJsonAsync([
                 ignore({ filter: "Value" }),
                 streamValues()
             ])

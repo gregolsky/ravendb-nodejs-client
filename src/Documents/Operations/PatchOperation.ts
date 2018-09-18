@@ -190,7 +190,7 @@ export class PatchCommand extends RavenCommand<PatchResult> {
         let body;
         const resultPromise = this._pipeline()
             .collectBody(b => body = b)
-            .parseJsonAsync2([
+            .parseJsonAsync([
                 filter({ filter: /^ModifiedDocument|OriginalDocument$/ }),
                 streamObject()
             ])
