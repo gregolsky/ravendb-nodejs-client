@@ -4,7 +4,7 @@ import {Company, Order, User} from "../../Assets/Entities";
 import {Lazy} from "../../../src/Documents/Lazy";
 import * as assert from "assert";
 
-describe.only("LazyTest", function () {
+describe("LazyTest", function () {
 
     let store: IDocumentStore;
 
@@ -84,18 +84,27 @@ describe.only("LazyTest", function () {
             const session = store.openSession();
 
             const company1Lazy: Lazy<Company> = session.advanced.lazily.load<Company>("companies/1");
-            company1Lazy.getValue().then(x => company1Ref = x);
+            assert.ok(!company1Lazy.isValueCreated());
 
             const company2Lazy: Lazy<Company> = session.advanced.lazily.load<Company>("companies/2");
-            company2Lazy.getValue().then(x => company2Ref = x);
-
-            assert.ok(!company1Lazy.isValueCreated());
             assert.ok(!company2Lazy.isValueCreated());
 
+            const beforeReqsCount = session.advanced.numberOfRequests;
             await session.advanced.eagerly.executeAllPendingLazyOperations();
+            const promise = Promise.all([ 
+                // we cannot do getValue() before a call to eagerly.executeAll... 
+                // since getValue() immediately calls the server in an async fashion
+                company1Lazy.getValue().then(x => company1Ref = x),
+                company2Lazy.getValue().then(x => company2Ref = x)
+            ]);
 
             assert.ok(company1Lazy.isValueCreated());
             assert.ok(company2Lazy.isValueCreated());
+
+            await promise;
+            assert.equal(
+                session.advanced.numberOfRequests - beforeReqsCount, 1, "Should have performed 1 request.");
+
             assert.strictEqual(company1Ref.id, "companies/1");
             assert.strictEqual(company2Ref.id, "companies/2");
         }
@@ -114,9 +123,9 @@ describe.only("LazyTest", function () {
             const session = store.openSession();
             let user: User;
             const lazy: Lazy<User> = session.advanced.lazily.load<User>("users/1");
-            lazy.getValue().then(x => user = x);
 
             await session.advanced.eagerly.executeAllPendingLazyOperations();
+            await lazy.getValue().then(x => user = x);
             assert.ok(user);
         }
     });
