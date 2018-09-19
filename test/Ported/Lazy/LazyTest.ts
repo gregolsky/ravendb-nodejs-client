@@ -16,7 +16,7 @@ describe.only("LazyTest", function () {
     afterEach(async () =>
         await disposeTestDocumentStore(store));
 
-    it.only("can lazily load entity", async () => {
+    it("can lazily load entity", async () => {
         {
             const session = store.openSession();
             for (let i = 1; i <= 6; i++) {
@@ -56,7 +56,7 @@ describe.only("LazyTest", function () {
         }
     });
 
-    it.only("can handle nulls", async () => {
+    it("can handle nulls", async () => {
         const session = store.openSession();
         const load = session.advanced.lazily.load<Company>(["no_such_1", "no_such_2"]);
         const missingItems = await load.getValue();

@@ -28,6 +28,6 @@ describe("streaming tryouts", function () {
 
             done();
         })
-        .on("data", x => assert.strictEqual(x, null));
+        .on("data", x => assert.strictEqual(x["value"], null));
     });
 });
