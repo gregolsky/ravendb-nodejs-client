@@ -41,7 +41,7 @@ export class ObjectKeyCaseTransformStream extends stream.Transform {
     public _transform(chunk: any, enc: string, callback) {
         let entry = this._handleKeyValue ? chunk["value"] : chunk;
         const key = chunk["key"];
-        if (TypeUtil.isPrimitive(entry)) {
+        if (TypeUtil.isPrimitive(entry) || TypeUtil.isNullOrUndefined(entry)) {
             return callback(null, chunk);
         }
 

@@ -6,7 +6,7 @@ import {
 } from "../../../src";
 import { GetDocumentsCommand } from "../../../src/Documents/Commands/GetDocumentsCommand";
 
-describe("GetDocumentCommand streaming", function () {
+describe.only("GetDocumentCommand streaming", function () {
 
     let store: IDocumentStore;
 
@@ -22,7 +22,7 @@ describe("GetDocumentCommand streaming", function () {
     afterEach(async () =>
         await disposeTestDocumentStore(store));
 
-    it("with key case transform", async () => {
+    it.only("with key case transform", async () => {
         let customStore: DocumentStore;
         try {
             customStore = new DocumentStore(store.urls, store.database);

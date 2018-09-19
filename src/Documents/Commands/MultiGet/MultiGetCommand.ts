@@ -1,3 +1,4 @@
+import * as through2 from "through2";
 import * as stream from "readable-stream";
 import { RavenCommand } from "../../../Http/RavenCommand";
 import { GetResponse } from "./GetResponse";
@@ -10,6 +11,7 @@ import { StatusCodes } from "../../../Http/StatusCode";
 import { getEtagHeader } from "../../../Utility/HttpUtil";
 import { streamArray } from "stream-json/streamers/StreamArray";
 import { streamObject } from "stream-json/streamers/StreamObject";
+import { streamValues } from "stream-json/streamers/StreamValues";
 import { pick } from "stream-json/filters/Pick";
 import { filter } from "stream-json/filters/Filter";
 import { ignore } from "stream-json/filters/Ignore";
@@ -79,8 +81,8 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
 
         const responsesPromise = this._pipeline()
             .parseJsonAsync([
+                ignore({ filter: /^Results\.\d+\.Result/ }),
                 pick({ filter: "Results" }),
-                ignore({ filter: /^\d+\.Result/ }),
                 streamArray()
             ])
             .streamKeyCaseTransform({
@@ -90,23 +92,22 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
             .collectResult({
                 initResult: [] as object[],
                 reduceResults: (result: object[], next) => {
-                    console.log("CHUNK", next);
                     return [...result, next["value"]]; 
                 }
             })
             .process(bodyStream);
-        
+
         const responsesResultsPromise = this._pipeline()
             .parseJsonAsync([
-                pick({ filter: /Results/i }),
-                filter({ filter: /^\d+\.Result/ }), /// metadat missing !!!!! TODO
-                streamArray()
+                pick({ filter: "Results" }),
+                pick({ filter: /^\d+\.Result\b/i }),
+                streamValues()
             ])
             .collectResult({
                 initResult: [] as object[],
                 reduceResults: (result: object[], next) => { 
                     // TODO try read it another way
-                    const resResult = JSON.stringify(next["value"]["Result"]);
+                    const resResult = JSON.stringify(next["value"]);
                     return [...result, resResult ];
                 }
             })

@@ -52,7 +52,6 @@ export class LazyLoadOperation<T extends object> implements ILazyOperation {
         const getRequest = new GetRequest();
         getRequest.url = "/docs";
         getRequest.query = queryBuilder.toString();
-        console.log(getRequest.query);
         return getRequest;
     }
 
@@ -112,12 +111,13 @@ export class LazyLoadOperation<T extends object> implements ILazyOperation {
         const multiLoadResult: GetDocumentsResult = 
             await GetDocumentsCommand.parseDocumentsResultResponseAsync(
                 stringToReadable(response.result), this._session.conventions);
-        debugger;
+
         this._handleResponse(multiLoadResult);
     }
 
     private _handleResponse(loadResult: GetDocumentsResult): void {
         this._loadOperation.setResult(loadResult);
+
         if (!this._requiresRetry) {
             this._result = this._loadOperation.getDocuments(this._clazz);
         }

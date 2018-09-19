@@ -34,6 +34,7 @@ describe.only("LazyTest", function () {
 
             let company = await lazyCompany.getValue();
             assert.strictEqual(company.id, "companies/1");
+
             const lazyOrders: Lazy<EntitiesCollectionObject<Company>>
                 = session.advanced.lazily.load<Company>(["companies/1", "companies/2"]);
             assert.ok(!lazyOrders.isValueCreated());
@@ -52,13 +53,17 @@ describe.only("LazyTest", function () {
             assert.ok(!lazyCompany.isValueCreated());
             company = await lazyCompany.getValue();
             assert.strictEqual(company.id, "companies/3");
-
-            const load: Lazy<EntitiesCollectionObject<Company>>
-                = session.advanced.lazily.load<Company>(["no_such_1", "no_such_2"]);
-            const missingItems = await load.getValue();
-            assert.ok(!missingItems["no_such_1"]);
-            assert.ok(!missingItems["no_such_2"]);
         }
+    });
+
+    it.only("can handle nulls", async () => {
+        const session = store.openSession();
+        const load = session.advanced.lazily.load<Company>(["no_such_1", "no_such_2"]);
+        const missingItems = await load.getValue();
+        assert.ok("no_such_1" in missingItems);
+        assert.ok("no_such_2" in missingItems);
+        assert.ok(!missingItems["no_such_1"]);
+        assert.ok(!missingItems["no_such_2"]);
     });
 
     it("can execute all pending lazy operations", async () => {

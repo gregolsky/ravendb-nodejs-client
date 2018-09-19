@@ -1,3 +1,4 @@
+import * as through2 from "through2";
 import * as stream from "readable-stream";
 import { RavenCommandResponsePipeline } from "../../../Http/RavenCommandResponsePipeline";
 import { pick } from "stream-json/filters/Pick";
@@ -16,7 +17,7 @@ export function parseDocumentResults<TResult>(
         .collectBody(bodyCallback)
         .parseJsonAsync([
             pick({ filter: "Results" }),
-            streamArray()
+            streamArray(),
         ])
         .streamKeyCaseTransform(conventions.entityFieldNameConvention, "DOCUMENT_LOAD")
         .collectResult((result, next) => [...result, next["value"]], [])
@@ -29,7 +30,7 @@ export function parseRestOfOutput(
     return RavenCommandResponsePipeline.create()
         .parseJsonAsync([
             ignore({ filter: ignoreFields }),
-            streamValues()
+            streamValues(),
         ])
         .streamKeyCaseTransform("camel")
         .process(bodyStream);

@@ -212,6 +212,7 @@ export class GetDocumentsCommand extends RavenCommand<GetDocumentsResult> {
         bodyStream: stream.Stream, 
         conventions: DocumentConventions,
         bodyCallback?: (body: string) => void): Promise<GetDocumentsResult> {
+
         const resultsPromise = parseDocumentResults(bodyStream, conventions, bodyCallback); 
         const includesPromise = parseDocumentIncludes(bodyStream, conventions);
         const restPromise = RavenCommandResponsePipeline.create()

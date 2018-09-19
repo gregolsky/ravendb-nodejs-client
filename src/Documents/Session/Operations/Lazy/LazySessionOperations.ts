@@ -37,7 +37,10 @@ export class LazySessionOperations implements ILazySessionOperations {
         }
 
         const ids: string[] = isMultipleIds ? idOrIds as string[] : [ idOrIds as string ];
-        return this._delegate.lazyLoadInternal(ids, [], clazz);
+        const result = this._delegate.lazyLoadInternal(ids, [], clazz);
+        return isMultipleIds 
+            ? result 
+            : new Lazy(async () => (await result.getValue())[idOrIds as string]);
     }
 
     public loadStartingWith<TEntity extends object>(
