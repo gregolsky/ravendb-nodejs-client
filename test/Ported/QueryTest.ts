@@ -714,7 +714,7 @@ describe("QueryTest", function () {
         }
     });
 
-    it("query lazily", async () => {
+    it.only("query lazily", async () => {
         const session = store.openSession();
 
         const user1 = new User();

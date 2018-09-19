@@ -14,6 +14,7 @@ import { streamObject } from "stream-json/streamers/StreamObject";
 import { pick } from "stream-json/filters/Pick";
 import { ignore } from "stream-json/filters/Ignore";
 import { parseDocumentResults, parseRestOfOutput, parseDocumentIncludes } from "../../Mapping/Json/Streams/Pipelines";
+import { TypesAwareObjectMapper } from "../../Mapping/ObjectMapper";
 
 export interface QueryCommandOptions {
     metadataOnly?: boolean;
@@ -90,31 +91,42 @@ export class QueryCommand extends RavenCommand<QueryResult> {
         }
 
         let body;
-        const resultsPromise = parseDocumentResults(bodyStream, this._conventions, b => body = b); 
-        const includesPromise = parseDocumentIncludes(bodyStream, this._conventions); 
-        const restPromise = parseRestOfOutput(bodyStream, /^Results|Includes$/);
-        
-        await Promise.all([ resultsPromise, includesPromise, restPromise ])
-            .then(([results, includes, rest]) => {
-                const rawResult = Object.assign({}, rest, { results, includes }) as QueryResult;
-                this.result = this._reviveResultTypes(rawResult, {
-                    typeName: QueryResult.name,
-                    nestedTypes: {
-                        indexTimestamp: "date",
-                        lastQueryTime: "date"
-                    }
-                }, new Map([[QueryResult.name, QueryResult]]));
-
-                if (fromCache) {
-                    this.result.durationInMs = -1;
-                }
-            });
+        this.result = await QueryCommand.parseQueryResultResponseAsync(
+            bodyStream, this._conventions, fromCache, this._typedObjectMapper, b => body = b);
 
         return body;
     }
 
     public get isReadRequest(): boolean {
         return true;
+    }
+
+    public static async parseQueryResultResponseAsync(
+        bodyStream: stream.Stream,
+        conventions: DocumentConventions,
+        fromCache: boolean,
+        mapper: TypesAwareObjectMapper,
+        bodyCallback?: (body: string) => void): Promise<QueryResult> {
+
+        const resultsPromise = parseDocumentResults(bodyStream, conventions, bodyCallback);
+        const includesPromise = parseDocumentIncludes(bodyStream, conventions);
+        const restPromise = parseRestOfOutput(bodyStream, /^Results|Includes$/);
+
+        const [ results, includes, rest ] = await Promise.all([resultsPromise, includesPromise, restPromise]);
+        const rawResult = Object.assign({}, rest, { results, includes }) as QueryResult;
+        const queryResult = mapper.fromObjectLiteral<QueryResult>(rawResult, {
+            typeName: QueryResult.name,
+            nestedTypes: {
+                indexTimestamp: "date",
+                lastQueryTime: "date"
+            }
+        }, new Map([[QueryResult.name, QueryResult]]));
+
+        if (fromCache) {
+            queryResult.durationInMs = -1;
+        }
+
+        return queryResult;
     }
 }
 
