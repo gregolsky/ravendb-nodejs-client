@@ -16,7 +16,7 @@ import { streamObject } from "stream-json/streamers/StreamObject";
 import { pick } from "stream-json/filters/Pick";
 import { ignore } from "stream-json/filters/Ignore";
 
-import { parseDocumentResults } from "../../Mapping/Json/Streams/Pipelines";
+import { parseDocumentResults, parseDocumentIncludes } from "../../Mapping/Json/Streams/Pipelines";
 
 export interface GetDocumentsCommandOptionsBase {
     conventions: DocumentConventions;
@@ -201,21 +201,20 @@ export class GetDocumentsCommand extends RavenCommand<GetDocumentsResult> {
         }
 
         let body;
-        const resultsPromise = parseDocumentResults(bodyStream, this._conventions, b => body = b); 
+        this.result = 
+            await GetDocumentsCommand.parseDocumentsResultResponseAsync(
+                bodyStream, this._conventions, b => body = b);
 
-        const includesPromise = this._pipeline<{ [key: string]: object }>()
-            .parseJsonAsync([
-                pick({ filter: "Includes" }),
-                streamObject()
-            ])
-            .streamKeyCaseTransform(this._conventions.entityFieldNameConvention, "DOCUMENT_LOAD")
-            .collectResult((result, next) => {
-                result[next["key"]] = next["value"];
-                return result;
-            }, {})
-            .process(bodyStream);
-        
-        const restPromise = this._pipeline()
+        return body as string;
+    }
+
+    public static async parseDocumentsResultResponseAsync(
+        bodyStream: stream.Stream, 
+        conventions: DocumentConventions,
+        bodyCallback?: (body: string) => void): Promise<GetDocumentsResult> {
+        const resultsPromise = parseDocumentResults(bodyStream, conventions, bodyCallback); 
+        const includesPromise = parseDocumentIncludes(bodyStream, conventions);
+        const restPromise = RavenCommandResponsePipeline.create()
             .parseJsonAsync([
                 ignore({ filter: /^Results|Includes$/ }),
                 streamObject()
@@ -223,11 +222,8 @@ export class GetDocumentsCommand extends RavenCommand<GetDocumentsResult> {
             .streamKeyCaseTransform("camel")
             .process(bodyStream);
 
-        return Promise.all([ resultsPromise, includesPromise, restPromise ])
-        .then(([ results, includes, rest ]) => {
-            this.result = Object.assign({}, rest, { includes, results }) as GetDocumentsResult;
-            return body as string;
-        });
+        const [results, includes, rest ] = await Promise.all([ resultsPromise, includesPromise, restPromise ]);
+        return Object.assign({}, rest, { includes, results }) as GetDocumentsResult;
     }
 
     public get isReadRequest(): boolean {

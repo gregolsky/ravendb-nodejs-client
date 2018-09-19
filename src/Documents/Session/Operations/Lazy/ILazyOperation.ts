@@ -8,5 +8,5 @@ export interface ILazyOperation {
     requiresRetry: boolean;
 
     createRequest(): GetRequest;
-    handleResponse(response: GetResponse): void;
+    handleResponseAsync(response: GetResponse): Promise<void>;
 }

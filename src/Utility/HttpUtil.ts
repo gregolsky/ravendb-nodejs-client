@@ -24,7 +24,7 @@ export function getEtagHeader(responseOrHeaders: HttpResponse | IncomingHttpHead
     }
 
     if (HEADERS.ETAG in responseOrHeaders) {
-        return responseHeaders[HEADERS.ETAG];
+        return responseOrHeaders[HEADERS.ETAG];
     }
 
     const headers = responseHeaders.get(HEADERS.ETAG);

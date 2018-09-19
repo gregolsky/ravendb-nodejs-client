@@ -4,18 +4,19 @@ import {Company, Order, User} from "../../Assets/Entities";
 import {Lazy} from "../../../src/Documents/Lazy";
 import * as assert from "assert";
 
-describe.skip("LazyTest", function () {
+describe.only("LazyTest", function () {
 
     let store: IDocumentStore;
 
     beforeEach(async function () {
+        testContext.enableFiddler();
         store = await testContext.getDocumentStore();
     });
 
     afterEach(async () =>
         await disposeTestDocumentStore(store));
 
-    it("can lazily load entity", async () => {
+    it.only("can lazily load entity", async () => {
         {
             const session = store.openSession();
             for (let i = 1; i <= 6; i++) {

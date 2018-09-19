@@ -10,7 +10,8 @@ export class MultiGetOperation {
         this._session = session;
     }
      public createRequest(requests: GetRequest[]): MultiGetCommand {
-        return new MultiGetCommand(this._session.requestExecutor.cache, requests);
+        return new MultiGetCommand(
+            this._session.requestExecutor.cache, this._session.conventions, requests);
     }
     
     public setResult(result: object): void {}

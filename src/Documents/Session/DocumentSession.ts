@@ -448,13 +448,15 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
                 url: requests[i].urlAndQuery,
                 duration: totalTime
             };
+
             responseTimeInformation.durationBreakdown.push(timeItem);
             if (response.requestHasErrors()) {
                 throwError(
                     "InvalidOperationException",
                     "Got an error from server, status code: " + response.statusCode + os.EOL + response.result);
             }
-            this._pendingLazyOperations[i].handleResponse(response);
+
+            await this._pendingLazyOperations[i].handleResponseAsync(response);
             if (this._pendingLazyOperations[i].requiresRetry) {
                 return true;
             }

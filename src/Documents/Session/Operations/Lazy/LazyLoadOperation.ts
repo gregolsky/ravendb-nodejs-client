@@ -1,4 +1,5 @@
 import * as StringBuilder from "string-builder";
+import * as stream from "readable-stream";
 import { ILazyOperation } from "./ILazyOperation";
 import { ObjectTypeDescriptor } from "../../../../Types";
 import { InMemoryDocumentSessionOperations } from "../../InMemoryDocumentSessionOperations";
@@ -6,7 +7,8 @@ import { LoadOperation } from "../LoadOperation";
 import { GetRequest } from "../../../Commands/MultiGet/GetRequest";
 import { QueryResult } from "../../../Queries/QueryResult";
 import { GetResponse } from "../../../Commands/MultiGet/GetResponse";
-import { GetDocumentsResult } from "../../../Commands/GetDocumentsCommand";
+import { GetDocumentsResult, GetDocumentsCommand } from "../../../Commands/GetDocumentsCommand";
+import { stringToReadable } from "../../../../Utility/StreamUtil";
 
 export class LazyLoadOperation<T extends object> implements ILazyOperation {
     private _clazz: ObjectTypeDescriptor<T>;
@@ -50,6 +52,7 @@ export class LazyLoadOperation<T extends object> implements ILazyOperation {
         const getRequest = new GetRequest();
         getRequest.url = "/docs";
         getRequest.query = queryBuilder.toString();
+        console.log(getRequest.query);
         return getRequest;
     }
 
@@ -99,23 +102,18 @@ export class LazyLoadOperation<T extends object> implements ILazyOperation {
         this._requiresRetry = result;
     }
 
-    public handleResponse(response: GetResponse): void {
+    public async handleResponseAsync(response: GetResponse): Promise<void> {
         if (response.forceRetry) {
             this.result = null;
             this.requiresRetry = true;
             return;
         }
 
-        return null; //TODO
-        // try {
-        //     const multiLoadResult: GetDocumentsResult = response.result;
-        //     // GetDocumentsResult multiLoadResult = response.getResult() != null ?
-        //     //     JsonExtensions.getDefaultMapper().readValue(response.getResult(), GetDocumentsResult.class)
-        //     //     : null;
-        //     handleResponse(multiLoadResult);
-        // } catch (IOException e) {
-        //     throw new RuntimeException(e);
-        // }
+        const multiLoadResult: GetDocumentsResult = 
+            await GetDocumentsCommand.parseDocumentsResultResponseAsync(
+                stringToReadable(response.result), this._session.conventions);
+        debugger;
+        this._handleResponse(multiLoadResult);
     }
 
     private _handleResponse(loadResult: GetDocumentsResult): void {

@@ -69,7 +69,7 @@ export class LazyStartsWithOperation<T extends object> implements ILazyOperation
         this._requiresRetry = result;
     }
 
-    public handleResponse(response: GetResponse): void {
+    public async handleResponseAsync(response: GetResponse): Promise<void> {
         // try {
         //     GetDocumentsResult getDocumentResult = JsonExtensions.getDefaultMapper().readValue(response.getResult(), GetDocumentsResult.class);
         //      TreeMap<String, Object> finalResults = new TreeMap<>(String::compareToIgnoreCase);

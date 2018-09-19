@@ -38,7 +38,7 @@ export class GetResponse {
      * @param headers Request headers.
      */
     public set headers(headers: { [key: string]: string }) {
-        this.headers = headers;
+        this._headers = headers;
     }
 
     /**

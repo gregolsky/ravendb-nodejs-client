@@ -153,7 +153,7 @@ function getTransformFunc(key, currentPath, opts: InternalObjectChangeCaseOption
             if (!p.path) {
                 return changeCase[p.transform];
             } else if (p.path.test(currentPath)) {
-                return changeCase[p.transform];
+                return p.transform ? changeCase[p.transform] : iden;
             }
         }
     }

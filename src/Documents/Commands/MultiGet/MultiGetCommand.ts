@@ -11,23 +11,28 @@ import { getEtagHeader } from "../../../Utility/HttpUtil";
 import { streamArray } from "stream-json/streamers/StreamArray";
 import { streamObject } from "stream-json/streamers/StreamObject";
 import { pick } from "stream-json/filters/Pick";
+import { filter } from "stream-json/filters/Filter";
 import { ignore } from "stream-json/filters/Ignore";
+import { stringer } from "stream-json/Stringer";
+import { DocumentConventions } from "../../Conventions/DocumentConventions";
 
 export class MultiGetCommand extends RavenCommand<GetResponse[]> {
     private _cache: HttpCache;
     private _commands: GetRequest[];
+    private _conventions: DocumentConventions;
     private _baseUrl: string;
 
-    public constructor(cache: HttpCache, commands: GetRequest[]) {
+    public constructor(cache: HttpCache, conventions: DocumentConventions, commands: GetRequest[]) {
        super();
        this._cache = cache;
        this._commands = commands;
+       this._conventions = conventions;
        this._responseType = "Raw";
    }
 
     private _getCacheKey(command: GetRequest): string {
         const url = this._baseUrl + command.urlAndQuery;
-        return command.method + "-" + url;
+        return (command.method || "GET") + "-" + url;
     }
 
    public createRequest(node: ServerNode): HttpRequestParameters {
@@ -54,7 +59,7 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
            const req = {
                Url: "/databases/" + node.database + command.url,
                Query: command.query,
-               Method: command.method,
+               Method: command.method || "GET",
                Headers: headers,
                Content: command.body
            };
@@ -72,35 +77,52 @@ export class MultiGetCommand extends RavenCommand<GetResponse[]> {
             this._throwInvalidResponse();
         }
 
-        return this._pipeline()
+        const responsesPromise = this._pipeline()
             .parseJsonAsync([
                 pick({ filter: "Results" }),
+                ignore({ filter: /^\d+\.Result/ }),
                 streamArray()
             ])
             .streamKeyCaseTransform({
                 defaultTransform: "camel",
-                paths: [
-                    {
-                        path: /result\.(results|includes)/i,
-                        transform: "camel"
-                    }
-                ]
+                ignorePaths: [ /\./ ],
             })
             .collectResult({
-                initResult: [] as GetResponse[],
-                reduceResults: (result: GetResponse[], next: GetResponse, i) => {
-                    const command = this._commands[i];
-                    this._maybeSetCache(next, command);
-                    this._maybeReadFromCache(next, command);
-                    return [...result, next] as GetResponse[];
+                initResult: [] as object[],
+                reduceResults: (result: object[], next) => {
+                    console.log("CHUNK", next);
+                    return [...result, next["value"]]; 
                 }
             })
-            .process(bodyStream)
-            .then(pipelineResult => {
-                this.result = (pipelineResult.result as object[])
-                    .map(x => GetResponse.create(x));
-                return null;
-            });
+            .process(bodyStream);
+        
+        const responsesResultsPromise = this._pipeline()
+            .parseJsonAsync([
+                pick({ filter: /Results/i }),
+                filter({ filter: /^\d+\.Result/ }), /// metadat missing !!!!! TODO
+                streamArray()
+            ])
+            .collectResult({
+                initResult: [] as object[],
+                reduceResults: (result: object[], next) => { 
+                    // TODO try read it another way
+                    const resResult = JSON.stringify(next["value"]["Result"]);
+                    return [...result, resResult ];
+                }
+            })
+            .process(bodyStream);
+        
+        const [ responses, responsesResults ] = await Promise.all([ responsesPromise, responsesResultsPromise ]);
+        for (let i = 0; i < responses.length; i++) {
+            const res = responses[i];
+            res.result = responsesResults[i];
+            const command = this._commands[i];
+            this._maybeSetCache(res, command);
+            this._maybeReadFromCache(res, command);
+        }
+
+        this.result = responses.map(x => GetResponse.create(x));
+        return null;
     }
 
     private _maybeReadFromCache(getResponse: GetResponse, command: GetRequest): void {
