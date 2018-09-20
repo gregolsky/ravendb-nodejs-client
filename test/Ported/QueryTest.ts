@@ -240,7 +240,7 @@ describe("QueryTest", function () {
         it("query with projection", async () => { 
             const session = store.openSession();
             const query = session.query(User)
-                .selectFields<UserProjection>(["id", "name"], UserProjection)
+                .selectFields<UserProjection>(["id", "name"], UserProjection);
 
             const results = await query.all();
             assert.equal(results.length, 3);
@@ -738,6 +738,31 @@ describe("QueryTest", function () {
         const queryResult = await lazyQuery.getValue();
         assert.strictEqual(queryResult.length, 3);
         assert.strictEqual(queryResult[0].name, "John");
+    });
+
+    it("query count lazily", async () => {
+        const session = store.openSession();
+
+        const user1 = new User();
+        user1.name = "John";
+
+        const user2 = new User();
+        user2.name = "Jane";
+
+        const user3 = new User();
+        user3.name = "Tarzan";
+
+        await session.store(user1, "users/1");
+        await session.store(user2, "users/2");
+        await session.store(user3, "users/3");
+        await session.saveChanges();
+
+        const lazyQuery = session.query<User>({
+            collection: "Users"
+        }).countLazily();
+
+        const queryResult = await lazyQuery.getValue();
+        assert.strictEqual(queryResult, 3);
     });
 });
 

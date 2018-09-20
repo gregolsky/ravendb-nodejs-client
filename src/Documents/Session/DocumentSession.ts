@@ -470,13 +470,11 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
         const lazyValue = new Lazy<TLazyResult>(async () => {
             await this.executeAllPendingLazyOperations();
             return operation.result as TLazyResult;
-            // return InMemoryDocumentSessionOperations._getOperationResult<TLazyResult>(
-            //     operation.result, clazz) as TLazyResult;
         });
         return lazyValue;
     }
 
-    protected _addLazyCountOperation(operation: ILazyOperation): Lazy<number> {
+    public addLazyCountOperation(operation: ILazyOperation): Lazy<number> {
         this._pendingLazyOperations.push(operation);
         return new Lazy(async () => {
             await this.executeAllPendingLazyOperations();

@@ -1822,10 +1822,14 @@ export abstract class AbstractDocumentQuery<T extends object, TSelf extends Abst
             this._queryOperation = this._initializeQueryOperation();
         }
 
-        return null;
-        // TODO
-        // const lazyQueryOperation = new LazyQueryOperation<T>(clazz, theSession.getConventions(), queryOperation, afterQueryExecutedCallback);
-        // return ((DocumentSession)theSession).addLazyCountOperation(lazyQueryOperation);
+        const clazz = this._conventions.findEntityType(this._clazz);
+        const lazyQueryOperation = 
+            new LazyQueryOperation<T>(
+                this._theSession.conventions, 
+                this._queryOperation, 
+                this,
+                clazz);
+        return (this._theSession as DocumentSession).addLazyCountOperation(lazyQueryOperation);
     }
 
     // tslint:enable:function-name

@@ -9,7 +9,6 @@ describe("LazyTest", function () {
     let store: IDocumentStore;
 
     beforeEach(async function () {
-        testContext.enableFiddler();
         store = await testContext.getDocumentStore();
     });
 
