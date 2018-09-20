@@ -64,7 +64,9 @@ export class HttpCache implements IDisposable {
     }
 
     public get numberOfItems(): number {
-        throw new Error("TODO");
+        return this._items["_get_buckets"]().reduce((result, next: Map<string, string>) => {
+            return result + next.size;
+        }, 0);
     }
 
     public getMightHaveBeenModified(): boolean {

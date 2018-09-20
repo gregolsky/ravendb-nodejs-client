@@ -61,7 +61,6 @@ export class BatchCommand extends RavenCommand<IRavenArrayResult> implements IDi
         const commandsArray = this._commands.reduce(
             (result, command) => [ ...result, command.serialize() ], []);
 
-        // TODO conventions-based entity casing customizations
         const body = JsonSerializer.getDefault().serialize({ Commands: commandsArray });
 
         const queryString = this._appendOptions();
