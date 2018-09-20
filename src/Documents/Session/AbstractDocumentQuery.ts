@@ -56,6 +56,9 @@ import { DocumentQueryCustomization } from "./DocumentQueryCustomization";
 import { FacetBase } from "../Queries/Facets/FacetBase";
 import {MoreLikeThisScope} from "../Queries/MoreLikeThis/MoreLikeThisScope";
 import {MoreLikeThisToken} from "./Tokens/MoreLikeThisToken";
+import {LazyQueryOperation} from "../Session/Operations/Lazy/LazyQueryOperation";
+import { DocumentSession } from "./DocumentSession";
+import { ObjectTypeDescriptor } from "../../Types";
 
 /**
  * A query against a Raven index
@@ -1798,17 +1801,19 @@ export abstract class AbstractDocumentQuery<T extends object, TSelf extends Abst
         this._selectTokens.push(FacetToken.create(facetSetupDocumentId));
     }
 
-    public lazily(): Lazy<T[]>;
-    public lazily(onEval: (list: T[]) => void): Lazy<T[]>;
-    public lazily(onEval?: (list: T[]) => void): Lazy<T[]> {
+    public lazily(): Lazy<T[]> {
         if (!this._queryOperation) {
             this._queryOperation = this._initializeQueryOperation();
         }
 
-        return null;
-        // const lazyQueryOperation = new LazyQueryOperation<>(
-        //     clazz, theSession.getConventions(), queryOperation, afterQueryExecutedCallback);
-        // return ((DocumentSession)theSession).addLazyOperation((Class<List<T>>) (Class<?>)List.class, lazyQueryOperation, onEval);
+        const clazz = this._conventions.findEntityType(this._clazz);
+        const lazyQueryOperation = new LazyQueryOperation<T>(
+            this._theSession.conventions,
+            this._queryOperation,
+            this,
+            clazz);
+        return (this._theSession as DocumentSession)
+            .addLazyOperation(lazyQueryOperation, clazz as ObjectTypeDescriptor<T[]>);
     }
 
     public countLazily(): Lazy<number> {
@@ -1818,6 +1823,7 @@ export abstract class AbstractDocumentQuery<T extends object, TSelf extends Abst
         }
 
         return null;
+        // TODO
         // const lazyQueryOperation = new LazyQueryOperation<T>(clazz, theSession.getConventions(), queryOperation, afterQueryExecutedCallback);
         // return ((DocumentSession)theSession).addLazyCountOperation(lazyQueryOperation);
     }

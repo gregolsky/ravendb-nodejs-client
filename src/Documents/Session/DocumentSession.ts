@@ -465,12 +465,13 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
         return false;
     }
 
-    public addLazyOperation<T extends object>(operation: ILazyOperation, clazz: ObjectTypeDescriptor<T>): Lazy<T> {
+    public addLazyOperation<TLazyResult>(operation: ILazyOperation, clazz: ObjectTypeDescriptor): Lazy<TLazyResult> {
         this._pendingLazyOperations.push(operation);
-        const lazyValue = new Lazy<T>(async () => {
+        const lazyValue = new Lazy<TLazyResult>(async () => {
             await this.executeAllPendingLazyOperations();
-            return InMemoryDocumentSessionOperations._getOperationResult(
-                operation.result, clazz);
+            return operation.result as TLazyResult;
+            // return InMemoryDocumentSessionOperations._getOperationResult<TLazyResult>(
+            //     operation.result, clazz) as TLazyResult;
         });
         return lazyValue;
     }

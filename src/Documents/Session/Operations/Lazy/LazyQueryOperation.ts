@@ -9,22 +9,24 @@ import { GetResponse } from "../../../Commands/MultiGet/GetResponse";
 import { QueryCommand } from "../../../Commands/QueryCommand";
 import { stringToReadable } from "../../../../Utility/StreamUtil";
 import { TypesAwareObjectMapper } from "../../../../Mapping/ObjectMapper";
+import { QueryEventsEmitter } from "../../../Session/QueryEvents";
 
 export class LazyQueryOperation<T extends object> implements ILazyOperation {
     private readonly _clazz: ObjectTypeDescriptor<T>;
     private readonly _conventions: DocumentConventions;
     private readonly _queryOperation: QueryOperation;
-    private readonly _afterQueryExecuted: Array<(result: QueryResult) => void>;
+    private readonly _parent: QueryEventsEmitter;
+
     public constructor(
         conventions: DocumentConventions,
         queryOperation: QueryOperation,
-        afterQueryExecuted: Array<(result: QueryResult) => void>,
+        parent: QueryEventsEmitter, 
         clazz: ObjectTypeDescriptor<T>) {
 
         this._clazz = clazz;
         this._conventions = conventions;
         this._queryOperation = queryOperation;
-        this._afterQueryExecuted = afterQueryExecuted;
+        this._parent = parent;
     }
 
     public createRequest(): GetRequest {
@@ -72,13 +74,13 @@ export class LazyQueryOperation<T extends object> implements ILazyOperation {
         }
 
         const result = await QueryCommand.parseQueryResultResponseAsync(
-            stringToReadable(response.result), this._conventions, false, new TypesAwareObjectMapper());
+            stringToReadable(response.result), this._conventions, false, this._conventions.entityObjectMapper);
         this._handleResponse(result);
     }
 
     private _handleResponse(queryResult: QueryResult): void {
         this._queryOperation.ensureIsAcceptableAndSaveResult(queryResult);
-        // TODO this._afterQueryExecuted, queryResult);
+        this._parent.emit("afterQueryExecuted", queryResult);
         this.result = this._queryOperation.complete(this._clazz);
         this.queryResult = queryResult;
     }
