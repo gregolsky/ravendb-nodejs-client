@@ -5,6 +5,9 @@ import { SessionLoadStartingWithOptions } from "../../IDocumentSession";
 import { GetRequest } from "../../../Commands/MultiGet/GetRequest";
 import { QueryResult } from "../../../Queries/QueryResult";
 import { GetResponse } from "../../../Commands/MultiGet/GetResponse";
+import { GetDocumentsCommand } from "../../../Commands/GetDocumentsCommand";
+import { stringToReadable } from "../../../../Utility/StreamUtil";
+import { DocumentInfo } from "../../DocumentInfo";
 
 const enc = encodeURIComponent;
 export class LazyStartsWithOperation<T extends object> implements ILazyOperation {
@@ -22,6 +25,7 @@ export class LazyStartsWithOperation<T extends object> implements ILazyOperation
         idPrefix: string, 
         opts: SessionLoadStartingWithOptions<T>,
         sessionOperations: InMemoryDocumentSessionOperations) {
+        
         this._idPrefix = idPrefix;
         this._matches = opts.matches;
         this._exclude = opts.exclude;
@@ -70,29 +74,32 @@ export class LazyStartsWithOperation<T extends object> implements ILazyOperation
     }
 
     public async handleResponseAsync(response: GetResponse): Promise<void> {
-        // try {
-        //     GetDocumentsResult getDocumentResult = JsonExtensions.getDefaultMapper().readValue(response.getResult(), GetDocumentsResult.class);
-        //      TreeMap<String, Object> finalResults = new TreeMap<>(String::compareToIgnoreCase);
-        //      for (JsonNode document : getDocumentResult.getResults()) {
-        //         DocumentInfo newDocumentInfo = DocumentInfo.getNewDocumentInfo((ObjectNode) document);
-        //         _sessionOperations.documentsById.add(newDocumentInfo);
-        //          if (newDocumentInfo.getId() == null) {
-        //             continue; // is this possible?
-        //         }
-        //          if (_sessionOperations.isDeleted(newDocumentInfo.getId())) {
-        //             finalResults.put(newDocumentInfo.getId(), null);
-        //             continue;
-        //         }
-        //          DocumentInfo doc = _sessionOperations.documentsById.getValue(newDocumentInfo.getId());
-        //         if (doc != null) {
-        //             finalResults.put(newDocumentInfo.getId(), _sessionOperations.trackEntity(_clazz, doc));
-        //             continue;
-        //         }
-        //          finalResults.put(newDocumentInfo.getId(), null);
-        //     }
-        //      result = finalResults;
-        // } catch (IOException e) {
-        //     throw new RuntimeException(e);
-        // }
+
+        const { results } = await GetDocumentsCommand.parseDocumentsResultResponseAsync(
+            stringToReadable(response.result), this._sessionOperations.conventions);
+
+        const finalResults = {};
+        for (const document of results) {
+            const newDocumentInfo = DocumentInfo.getNewDocumentInfo(document);
+            this._sessionOperations.documentsById.add(newDocumentInfo);
+            if (!newDocumentInfo.id) {
+                continue;
+            }
+
+            if (this._sessionOperations.isDeleted(newDocumentInfo.id)) {
+                finalResults[newDocumentInfo.id] = null;
+                continue;
+            }
+
+            const doc = this._sessionOperations.documentsById.getValue(newDocumentInfo.id);
+            if (doc) {
+                finalResults[newDocumentInfo.id] = this._sessionOperations.trackEntity(this._clazz, doc);
+                continue;
+            }
+
+            finalResults[newDocumentInfo.id] = null;
+        }
+
+        this.result = finalResults;
     }
 }
