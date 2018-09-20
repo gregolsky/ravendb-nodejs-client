@@ -16,14 +16,13 @@ describe("LoadAllStartingWith", function () {
     let store: IDocumentStore;
 
     beforeEach(async function () {
-        testContext.enableFiddler();
         store = await testContext.getDocumentStore();
     });
 
     afterEach(async () =>
         await disposeTestDocumentStore(store));
 
-    it.only("can load all starting with", async () => {
+    it("can load all starting with", async () => {
         const doc1 = new Abc();
         doc1.id = "abc/1";
 
@@ -42,7 +41,7 @@ describe("LoadAllStartingWith", function () {
             const testClassesLazy: Lazy<EntitiesCollectionObject<Abc>> =
                 session.advanced.lazily.loadStartingWith<Abc>("abc/");
             const test2Classes: Xyz[] = await session.query<Xyz>({
-                collection: "xyz"
+                collection: store.conventions.getCollectionNameForType(Xyz) 
             })
             .waitForNonStaleResults()
             .lazily()
@@ -51,7 +50,7 @@ describe("LoadAllStartingWith", function () {
             const testClasses = await testClassesLazy.getValue();
 
             assert.strictEqual(Object.keys(testClasses).length, 1);
-            assert.strictEqual(Object.keys(test2Classes).length, 1);
+            assert.strictEqual(test2Classes.length, 1);
             assert.strictEqual(testClasses["abc/1"].id, "abc/1");
             assert.strictEqual(test2Classes[0].id, "xyz/1");
         }

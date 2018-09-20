@@ -1813,7 +1813,7 @@ export abstract class AbstractDocumentQuery<T extends object, TSelf extends Abst
             this,
             clazz);
         return (this._theSession as DocumentSession)
-            .addLazyOperation(lazyQueryOperation, clazz as ObjectTypeDescriptor<T[]>);
+            .addLazyOperation(lazyQueryOperation);
     }
 
     public countLazily(): Lazy<number> {

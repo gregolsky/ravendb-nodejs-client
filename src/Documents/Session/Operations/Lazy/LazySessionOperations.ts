@@ -6,14 +6,7 @@ import { ObjectTypeDescriptor, EntitiesCollectionObject } from "../../../../Type
 import { Lazy } from "../../../Lazy";
 import { SessionLoadStartingWithOptions } from "../../IDocumentSession";
 import { LazyStartsWithOperation } from "./LazyStartsWithOperation";
-
-const LOAD_STARTING_WITH_DEFAULTS: SessionLoadStartingWithOptions<any> = {
-    start: 0,
-    pageSize: 25,
-    exclude: null,
-    matches: null,
-    startAfter: null
-};
+import { LoadStartingWithOperation } from "../LoadStartingWithOperation";
 
 export class LazySessionOperations implements ILazySessionOperations {
     
@@ -60,10 +53,9 @@ export class LazySessionOperations implements ILazySessionOperations {
         opts?: SessionLoadStartingWithOptions<TEntity>): 
         Lazy<EntitiesCollectionObject<TEntity>> {
             opts = opts || null;
-            opts = Object.assign({}, LOAD_STARTING_WITH_DEFAULTS, opts);
+            opts = Object.assign({}, LoadStartingWithOperation.DEFAULT, opts);
             const operation = new LazyStartsWithOperation(idPrefix, opts, this._delegate);
-            const type = this._delegate.conventions.findEntityType<TEntity>(opts.documentType);
-            return this._delegate.addLazyOperation(operation, type as any);
+            return this._delegate.addLazyOperation(operation);
     }
 
     // TBD expr ILazyLoaderWithInclude<T> ILazySessionOperations.Include<T>(Expression<Func<T, string>> path)

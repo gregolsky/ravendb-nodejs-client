@@ -465,7 +465,7 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
         return false;
     }
 
-    public addLazyOperation<TLazyResult>(operation: ILazyOperation, clazz: ObjectTypeDescriptor): Lazy<TLazyResult> {
+    public addLazyOperation<TLazyResult>(operation: ILazyOperation): Lazy<TLazyResult> {
         this._pendingLazyOperations.push(operation);
         const lazyValue = new Lazy<TLazyResult>(async () => {
             await this.executeAllPendingLazyOperations();
@@ -499,6 +499,6 @@ export class DocumentSession extends InMemoryDocumentSessionOperations
             .byIds(ids)
             .withIncludes(includes);
 
-        return this.addLazyOperation(lazyOp, clazz as any);
+        return this.addLazyOperation(lazyOp);
     }
 }
