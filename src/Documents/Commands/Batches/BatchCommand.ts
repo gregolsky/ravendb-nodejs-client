@@ -71,7 +71,6 @@ export class BatchCommand extends RavenCommand<IRavenArrayResult> implements IDi
         };
 
         if (this._attachmentStreams && this._attachmentStreams.size > 0) {
-            // TODO verify
             const attachments = [...this._attachmentStreams]
                 .map(attStream => {
                     return { 

@@ -400,27 +400,6 @@ export abstract class InMemoryDocumentSessionOperations
         return true;
     }
 
-    // TODO remove me
-    // protected static _getOperationResult<TResult>(result: any, clazz: ObjectTypeDescriptor): TResult {
-    //     // if (!result) { TODO ?
-    //     //     return result;
-    //     // }
-
-    //     // if (clazz.name === result.clazz) { TODO check
-    //     return result as TResult;
-    //     // }
-
-    //     //  if (result instanceof Map) { TODO needed?
-    //     //     Map map = (Map) result;
-    //     //     if (map.isEmpty()) {
-    //     //         return null;
-    //     //     } else {
-    //     //         return (T) map.values().iterator().next();
-    //     //     }
-    //     // }
-    //     //  throw new IllegalStateException("Unable to cast " + result.getClass().getSimpleName() + " to " + clazz.getSimpleName());
-    // }
-
     /**
      * Tracks the entity inside the unit of work
      * @param <T> entity class
