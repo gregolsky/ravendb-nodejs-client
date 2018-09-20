@@ -77,5 +77,5 @@ describe("GetDocumentCommand streaming", function () {
         }
     });
 
-    it.skip("[NOT IMPL] gets docs having a Map", () => {});
+    it("gets docs having a Map");
 });
